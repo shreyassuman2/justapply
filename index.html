@@ -322,7 +322,8 @@
 
   /* OA form (inside the side panel) */
   .drawer-title { font-size: 16px; font-weight: 600; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .saved { font-size: 12px; color: var(--faint); white-space: nowrap; transition: opacity 150ms ease-out; }
+  .saved { font-size: 12px; color: var(--faint); white-space: nowrap; opacity: 0; transition: opacity 200ms ease-out; }
+  .saved.on { opacity: 1; }
   .form { display: grid; gap: 16px; }
   .form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field { display: grid; gap: 6px; min-width: 0; }
@@ -354,6 +355,17 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #3a3a38; border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
   ::-webkit-scrollbar-thumb:hover { background-color: #4a4946; }
+
+  /* Day popover from the calendar: floats, so it carries a shadow; scrolls inside itself. */
+  .cal-cell.has-apps { cursor: pointer; }
+  .cal-cell.picked { stroke: var(--text); stroke-width: 2; }
+  .day-pop { position: absolute; z-index: 28; width: 340px; max-width: calc(100vw - 16px); max-height: min(420px, calc(100vh - 32px)); display: flex; flex-direction: column; background: var(--raised); border: 1px solid transparent; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 4px 8px rgba(0,0,0,0.3), 0 16px 40px rgba(0,0,0,0.5); }
+  .day-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 14px 10px 10px 16px; border-bottom: 1px solid var(--border); }
+  .day-title { font-size: 15px; font-weight: 600; }
+  .day-count { font-size: 13px; color: var(--faint); margin-top: 2px; }
+  .day-list { overflow-y: auto; overscroll-behavior: contain; padding: 4px 16px 8px; }
+  .day-list li { min-height: 52px; }
+  .pill-muted { background: var(--active); color: var(--muted); }
 
   [hidden] { display: none !important; }
 </style>
@@ -549,6 +561,15 @@
 
 <input type="file" id="fileInput" accept=".csv,text/csv" multiple hidden>
 <input type="file" id="restoreInput" accept=".json,application/json" hidden>
+<div class="day-pop" id="dayPop" role="dialog" aria-labelledby="dayTitle" hidden>
+  <div class="day-head">
+    <div><div class="day-title" id="dayTitle"></div><div class="day-count" id="dayCount"></div></div>
+    <button class="btn btn-text btn-icon" id="dayClose" type="button" aria-label="Close">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <ul class="list day-list" id="dayList"></ul>
+</div>
 <div id="tip" role="tooltip"></div>
 <div id="overlay">Drop CSV to load</div>
 
@@ -566,6 +587,17 @@ motionQuery.addEventListener?.('change', e => { MOTION = e.matches; });
 // Fade/rise for panels that open in place. Interruptible: a new call cancels the running one and starts
 // from the panel's current opacity, so opening and closing quickly never jumps.
 const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+// Entrances for things that appear (never the charts): opacity, 4px blur and a short rise over 300ms,
+// staggered 100ms when several arrive together. Reduced motion gets a plain 200ms fade.
+function animateIn(els, { stagger = 100, rise = 12, duration = 300 } = {}) {
+  els.filter(Boolean).forEach((el, i) => {
+    el.getAnimations().forEach(a => a.cancel());
+    const frames = MOTION
+      ? [{ opacity: 0, transform: `translateY(${rise}px)`, filter: 'blur(4px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }]
+      : [{ opacity: 0 }, { opacity: 1 }];
+    el.animate(frames, { duration: MOTION ? duration : 200, delay: MOTION ? i * stagger : 0, easing: 'ease-out', fill: 'backwards' });
+  });
+}
 function reveal(el, show) {
   let from = null;
   if (el._anim) { from = +getComputedStyle(el).opacity; el._anim.cancel(); el._anim = null; } // live value first
@@ -845,6 +877,9 @@ const RANGES = [
 
 /* ---------- State ---------- */
 let view = 'apps';       // 'apps' | 'oas'
+let firstPaint = true;   // the panels' entrance plays once per launch
+let viewReady = false;   // switching sections animates only after the first view is shown
+let pendingNew = false;  // a fresh What's new card slides in once
 let files = [];          // normalized files
 let merged = null;
 let overrides = store.get(OVERRIDE_KEY) || [];   // [{ keys, bucket, csvBucket, label }]
@@ -912,9 +947,14 @@ function loadTexts(list, persist) {
   merged = merge(files);
   const prev = store.get(SNAP_KEY);
   if (persist && Array.isArray(prev)) {
-    lastDiff = diffAgainst(prev, merged, list.map(x => x.name));
-    showAllNew = false;
-    store.set(DIFF_KEY, lastDiff);
+    const diff = diffAgainst(prev, merged, list.map(x => x.name));
+    // Only an upload that added applications or changed a status gets a card; a file with nothing new stays quiet.
+    if (diff.added.length || diff.changed.length) {
+      lastDiff = diff; showAllNew = false; pendingNew = true;
+      store.set(DIFF_KEY, lastDiff);
+    } else if (!lastDiff) {
+      store.del(DIFF_KEY);
+    }
   }
   if (persist || !Array.isArray(prev)) store.set(SNAP_KEY, snapshotOf(merged));
   applyOverrides();
@@ -983,7 +1023,7 @@ function render() {
   $('historyMeta').textContent = hasData
     ? `${plural(files.length, 'export')} saved on this device (${kinds.join(' and ')}), ${plural(overrides.length, 'edit')}.`
     : 'Nothing saved yet.';
-  if (!hasData) { closeDrawer(true); return; }
+  if (!hasData) { closeDrawer(true); if (firstPaint && view === 'apps') { firstPaint = false; animateIn([$('dropzone')]); } return; }
 
   const range = RANGES.find(r => r.id === rangeId);
   $('rangeLabel').textContent = range.label;
@@ -1018,6 +1058,7 @@ function render() {
   renderHeard(apps);
   renderClock(apps);
   if (drawerOpen && drawerTab === 'edit') renderEditor();
+  if (firstPaint && view === 'apps') { firstPaint = false; animateIn([...$('dash').querySelectorAll('#rangeNote:not([hidden]), .grid > .panel:not([hidden])')]); }
 }
 
 /* ---------- Date-range menu ---------- */
@@ -1064,7 +1105,7 @@ function menuKeys(e) {
 /* ---------- Drawer ---------- */
 let drawerOpen = false, drawerTab = 'replies', drawerReturn = null;
 function openDrawer(tab, from) {
-  const wasOpen = drawerOpen;
+  const wasOpen = drawerOpen, prevTab = drawerTab;
   drawerOpen = true; drawerTab = tab;
   if (!wasOpen) drawerReturn = from || document.activeElement;
   ['replies', 'waiting', 'edit'].forEach(t => {
@@ -1072,8 +1113,10 @@ function openDrawer(tab, from) {
     $('tab-' + t).tabIndex = t === tab ? 0 : -1;
     $('pane-' + t).hidden = t !== tab;
   });
+  const switched = wasOpen && drawerTab !== prevTab;
   if (!wasOpen) slideDrawer($('drawer'), true);
   render();
+  if (switched) animateIn([$('pane-' + tab)], { rise: 6, duration: 200 });
   if (tab === 'edit') $('edSearch').focus({ preventScroll: true });
   else if (!wasOpen) $('tab-' + tab).focus({ preventScroll: true });
 }
@@ -1105,11 +1148,12 @@ function renderWhatsNew() {
   const card = $('whatsNew');
   if (!lastDiff) { if (!card._anim) card.hidden = true; return; }
   card.hidden = false;
+  if (pendingNew) { pendingNew = false; requestAnimationFrame(() => animateIn([card])); }
   const d = lastDiff;
-  const none = !d.added.length && !d.changed.length;
-  $('newTitle').textContent = none ? 'Nothing new' : "What's new";
+  if (!d.added.length && !d.changed.length) { lastDiff = null; store.del(DIFF_KEY); card.hidden = true; return; }
+  $('newTitle').textContent = "What's new";
   const when = new Date(d.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  $('newSub').textContent = `From ${d.files.join(' + ')} · ${when}` + (none ? '. Every application in it was already counted.' : '');
+  $('newSub').textContent = `From ${d.files.join(' + ')} · ${when}`;
   const body = $('newBody'); body.replaceChildren();
   const LIMIT = 8;
   const section = (title, items, line) => {
@@ -1244,6 +1288,46 @@ function renderHeard(apps) {
   more.hidden = rows.length <= LIMIT;
   more.textContent = heardAll ? 'Show fewer' : `View all ${rows.length}`;
   more.onclick = () => { heardAll = !heardAll; renderHeard(apps); };
+}
+
+// Click a calendar day: a small panel anchored to that square lists what you applied to.
+const DAY_STATUS = { waiting: ['Waiting', 'pill-muted'], ghosted: ['No reply', 'pill-muted'], progress: ['Screen', 'pill-info'], offer: ['Offer', 'pill-positive'], rejected: ['Rejected', 'pill-neutral'], withdrawn: ['Withdrawn', 'pill-muted'] };
+let dayCell = null;
+function openDay(date, cell, list) {
+  closeDay();
+  const pop = $('dayPop');
+  $('dayTitle').textContent = date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  $('dayCount').textContent = plural(list.length, 'application');
+  const ul = $('dayList'); ul.replaceChildren();
+  list.sort((a, b) => a.company.localeCompare(b.company)).forEach(a => {
+    const li = document.createElement('li');
+    const m = document.createElement('div'); m.className = 'li-main';
+    const nm = document.createElement('div'); nm.className = 'li-name'; nm.textContent = a.company;
+    const sub = document.createElement('div'); sub.className = 'li-sub'; sub.textContent = a.role;
+    m.append(nm, sub);
+    const [label, cls] = DAY_STATUS[a.outcome] || DAY_STATUS.waiting;
+    const pill = document.createElement('span'); pill.className = 'pill ' + cls; pill.textContent = label;
+    rowShell(li, a).append(m, pill);
+    ul.appendChild(li);
+  });
+  pop.hidden = false;
+  // Place it under the square (above if there's no room), kept inside the window; it scrolls with the page.
+  const r = cell.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8;
+  const below = r.bottom + gap + h <= innerHeight - 8 || r.top - gap - h < 8;
+  const x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
+  const y = below ? r.bottom + gap : r.top - gap - h;
+  pop.style.left = (x + scrollX) + 'px'; pop.style.top = (y + scrollY) + 'px';
+  pop.style.transformOrigin = `${r.left + r.width / 2 - x}px ${below ? 0 : h}px`;
+  pop.animate(MOTION ? [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'scale(1)' }] : [{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+  dayCell = cell; cell.classList.add('picked');
+  $('dayClose').focus({ preventScroll: true });
+}
+function closeDay(returnFocus) {
+  const pop = $('dayPop');
+  if (pop.hidden) return;
+  pop.hidden = true;
+  if (dayCell) { dayCell.classList.remove('picked'); if (returnFocus && document.contains(dayCell)) dayCell.focus({ preventScroll: true }); }
+  dayCell = null;
 }
 
 // Signature element: how long the open applications have waited, against the 30-day ghost line.
@@ -1450,6 +1534,7 @@ function renderSankey(apps) {
 }
 
 function renderCalendar(apps, start, undatedCount) {
+  closeDay();
   const host = $('calendar'); host.replaceChildren();
   const dated = apps.filter(a => a.date);
   const byDay = d3.rollup(dated, v => v.length, a => ymd(a.date));
@@ -1503,7 +1588,16 @@ function renderCalendar(apps, start, undatedCount) {
       showTip(evt, el => tipLine(el, plural(v, 'application'), d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })));
     })
     .on('pointermove', moveTip)
-    .on('pointerleave blur', hideTip);
+    .on('pointerleave blur', hideTip)
+    .classed('has-apps', d => !!byDay.get(ymd(d)))
+    .attr('role', d => byDay.get(ymd(d)) ? 'button' : null)
+    .attr('aria-label', d => { const v = byDay.get(ymd(d)); return v ? `${plural(v, 'application')} on ${d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}. Show them` : null; })
+    .on('click keydown', (evt, d) => {
+      if (evt.type === 'keydown' && evt.key !== 'Enter' && evt.key !== ' ') return;
+      if (!byDay.get(ymd(d))) return;
+      evt.preventDefault(); hideTip();
+      openDay(d, evt.currentTarget, apps.filter(a => a.date && ymd(a.date) === ymd(d)));
+    });
 
   // Stats
   let busiest = null; byDay.forEach((v, k) => { if (!busiest || v > busiest[1]) busiest = [k, v]; });
@@ -1600,9 +1694,15 @@ $('drawer').querySelector('.tabs').addEventListener('keydown', (e) => {
 ['rangeBtn', 'moreBtn'].forEach(id => $(id).addEventListener('click', (e) => openMenuBtn === e.currentTarget ? closeMenu() : openMenu(e.currentTarget)));
 document.addEventListener('keydown', (e) => {
   if (openMenuBtn) return menuKeys(e);
+  if (e.key === 'Escape' && !$('dayPop').hidden) { closeDay(true); return; }
   if (e.key === 'Escape' && drawerOpen) closeDrawer();
 });
-document.addEventListener('pointerdown', (e) => { if (openMenuBtn && !e.target.closest('.menu-wrap')) closeMenu(); });
+document.addEventListener('pointerdown', (e) => {
+  if (openMenuBtn && !e.target.closest('.menu-wrap')) closeMenu();
+  if (!$('dayPop').hidden && !e.target.closest('#dayPop') && !e.target.closest('.cal-cell.has-apps')) closeDay();
+});
+$('dayClose').addEventListener('click', () => closeDay(true));
+addEventListener('resize', () => closeDay());
 
 $('edSearch').addEventListener('input', renderEditor);
 window.__appfunnel = () => merged;
@@ -1642,6 +1742,9 @@ function setView(v) {
   if (v === 'oas') { closeDrawer(true); $('rangeBtn').hidden = true; renderOAs(); }
   else { closeOA(true); render(); }
   document.title = v === 'oas' ? 'OAs · JustApply' : 'JustApply';
+  if (viewReady) animateIn([$(v === 'oas' ? 'oaView' : 'appsView')], { rise: 8, duration: 220 });
+  else if (v === 'oas') { firstPaint = false; animateIn([...$('oaView').querySelectorAll('#oaEmpty:not([hidden]), #oaGrid:not([hidden]) > .panel')]); }
+  viewReady = true;
 }
 
 function renderOAs() {
@@ -1672,6 +1775,7 @@ function renderOAs() {
     end.append(dt, dots);
     b.append(m, end); b.onclick = () => openOA(o.id, b);
     li.appendChild(b); ul.appendChild(li);
+    if (o.id === freshOaId) { freshOaId = null; animateIn([li], { rise: 8, duration: 260 }); }
   });
 
   // Weak spots: per topic, solved / partial / missed; most trouble first.
@@ -1712,7 +1816,7 @@ function renderOAs() {
 }
 
 /* OA side panel: every change saves itself, with a quiet "Saved" stamp. */
-let editingId = null, oaReturn = null, savedTimer = null;
+let editingId = null, oaReturn = null, savedTimer = null, freshOaId = null;
 function fillLists() {
   const companies = [...new Set([...(merged ? merged.apps.map(a => a.company) : []), ...oas.map(o => o.company)].filter(Boolean))].sort();
   $('companyList').replaceChildren(...companies.map(c => Object.assign(document.createElement('option'), { value: c })));
@@ -1742,7 +1846,7 @@ function openOA(id, from) {
   ['company', 'role', 'date', 'platform', 'score', 'well', 'wrong', 'next'].forEach(k => { f.elements[k].value = o[k] || ''; });
   $('qList').replaceChildren(...o.questions.map(qRow));
   $('oaTitle').textContent = o.company || 'New OA';
-  $('oaSaved').textContent = '';
+  $('oaSaved').classList.remove('on');
   $('oaDelete').hidden = !oas.some(x => x.id === o.id);
   if ($('oaPanel').hidden) { oaReturn = from || document.activeElement; slideDrawer($('oaPanel'), true); }
   f.elements.company.focus({ preventScroll: true });
@@ -1766,13 +1870,14 @@ function saveOA() {
   data.questions = [...$('qList').children].map(r => ({ topic: r.querySelector('[data-k=topic]').value, name: r.querySelector('[data-k=name]').value, outcome: r.querySelector('[data-k=outcome]').value }))
     .filter(q => q.topic.trim() || q.name.trim() || q.outcome !== 'solved');
   let o = oas.find(x => x.id === editingId);
-  if (!o) { o = { id: editingId, createdAt: Date.now() }; oas.push(o); }
+  if (!o) { o = { id: editingId, createdAt: Date.now() }; oas.push(o); freshOaId = editingId; }
   Object.assign(o, data, { updatedAt: Date.now() });
   saveOAs();
   $('oaTitle').textContent = o.company || 'New OA';
   $('oaDelete').hidden = false;
   $('oaSaved').textContent = 'Saved';
-  clearTimeout(savedTimer); savedTimer = setTimeout(() => { $('oaSaved').textContent = ''; }, 1600);
+  $('oaSaved').classList.add('on');
+  clearTimeout(savedTimer); savedTimer = setTimeout(() => $('oaSaved').classList.remove('on'), 1600);
   renderOAs();
 }
 let saveTimer = null;
