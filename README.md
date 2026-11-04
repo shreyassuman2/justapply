@@ -38,6 +38,8 @@ Options: `npx justapply --port 4546` uses a different port, and `--no-open` skip
 - **Heard back list, waiting clock, and an applying calendar.** Click a day to see what you applied to.
 - **Edit statuses** for updates your tracker doesn't have yet.
 - **OA notebook:** log each assessment's questions by topic and how they went, plus what went well, what went wrong and what to do next time.
+- **Weekly goal:** set a target, track this week's progress and your streak.
+- **Share a summary image:** a clean card of your totals for LinkedIn or Discord. No company names.
 - **Download your applications as a clean CSV.**
 
 ## Your data
