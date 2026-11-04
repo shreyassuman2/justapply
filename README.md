@@ -6,6 +6,10 @@ JustApply turns your csv exports into a clean dashboard: how many applications h
 
 Runs locally on your computer. Nothing is uploaded anywhere.
 
+![JustApply demo: loading a Simplify export, the funnel, replies and waiting clock, a day in the applying calendar, and logging an OA](https://raw.githubusercontent.com/shreyassuman2/justapply/main/docs/demo.gif)
+
+In the demo: drop in a Simplify export, switch the date range, open who replied and how long the rest have waited, click a day in the calendar to see what you applied to, then log an OA and watch its weak topic show up.
+
 ## Run it
 
 You need [Node.js](https://nodejs.org) 18 or newer.
