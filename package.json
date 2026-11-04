@@ -1,6 +1,6 @@
 {
   "name": "justapply",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "See which job applications actually got a reply. Merges Simplify and ApplyTwin exports into one dashboard, with an OA notebook. Runs on your own computer.",
   "bin": {
     "justapply": "bin/justapply.js"
