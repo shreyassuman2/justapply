@@ -2,7 +2,7 @@
 
 Simplify's tracker ui is a pain to use. 
 
-JustApply turns your csv exports into a clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied. It also includes a notebook for OA's.
+JustApply turns your csv exports into a clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied.
 
 Runs locally on your computer. Nothing is uploaded anywhere.
 
