@@ -1,4 +1,4 @@
-# App Funnel
+# JustApply
 
 A single-page dashboard for job applications. Drop in tracker CSVs and it shows your funnel.
 

@@ -1,6 +1,6 @@
 {
-  "name": "App Funnel",
-  "short_name": "App Funnel",
+  "name": "JustApply",
+  "short_name": "JustApply",
   "description": "See which job applications actually got a reply. Merges Simplify and ApplyTwin exports, on your device only.",
   "start_url": "./",
   "scope": "./",

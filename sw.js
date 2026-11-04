@@ -1,7 +1,7 @@
-// App Funnel service worker: makes the app open offline and installable.
+// JustApply service worker: makes the app open offline and installable.
 // The page itself is fetched network-first so a new version shows up as soon as you're online;
 // everything else (icons, the three pinned libraries) is served from the cache.
-const CACHE = 'app-funnel-v1';
+const CACHE = 'justapply-v2';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',

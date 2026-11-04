@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>App Funnel</title>
+<title>JustApply</title>
 <meta name="description" content="See which job applications actually got a reply. Merges Simplify and ApplyTwin exports, on your device only.">
 <meta name="theme-color" content="#0d0d0d">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="App Funnel">
+<meta name="apple-mobile-web-app-title" content="JustApply">
 <style>
   /* Calm dark (the original look). Near-black page, cards one tone up, system font.
      Funnel colours from the dataviz reference palette, dark steps, validated all-pairs on #1a1a19:
@@ -162,7 +162,7 @@
   .clock-row .lbl { color: var(--muted); white-space: nowrap; }
   .clock-row .val { text-align: right; font-variant-numeric: tabular-nums; }
   .track { position: relative; height: 8px; }
-  .track b { position: absolute; inset: 0; border-radius: 0 2px 2px 0; background: var(--c-waiting); transform-origin: left center; transform: scaleX(0); transition: transform 420ms cubic-bezier(0.2, 0, 0, 1), background-color 150ms ease-out; }
+  .track b { position: absolute; inset: 0; border-radius: 0 2px 2px 0; background: var(--c-waiting); transform-origin: left center; transform: scaleX(0); transition: background-color 150ms ease-out; }
   @media (prefers-reduced-motion: reduce) { .track b { transition: none; } }
   .clock-row { border-radius: 4px; outline-offset: 4px; }
   @media (hover: hover) { .clock-row:hover .track b { background: var(--c-ghosted); } .clock-row.soon:hover .track b, .clock-row.ghost:hover .track b { background: var(--chart-3); } }
@@ -240,7 +240,9 @@
   /* Icon buttons and the dropdown chevron */
   .btn-icon { width: var(--control-height); padding: 0; display: inline-grid; place-items: center; }
   .btn-icon svg { width: 16px; height: 16px; }
-  .btn-menu { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 12px; } /* 2px less on the icon side */
+.btn-menu { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 12px; background: none; color: var(--muted); } /* 2px less on the icon side */
+  .btn-menu[aria-expanded="true"] { background: var(--raised); color: var(--text); }
+  @media (hover: hover) { .btn-menu:hover { background: var(--raised); color: var(--text); } }
   .chev { width: 14px; height: 14px; color: var(--faint); transition: rotate 150ms ease-out; }
   .btn-menu[aria-expanded="true"] .chev { rotate: 180deg; }
 
@@ -286,6 +288,73 @@
   .pane-meta { font-size: 13px; color: var(--faint); margin: 0 0 12px; line-height: 19px; }
   @media (max-width: 640px) { .drawer { top: auto; left: 8px; right: 8px; width: auto; height: min(78vh, 640px); } }
 
+
+  /* Sections: Applications | OAs */
+  .views { display: flex; gap: 2px; margin-left: 8px; }
+  .view-link { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 8px; color: var(--faint); font-size: 14px; font-weight: 500; text-decoration: none; -webkit-tap-highlight-color: transparent; transition-property: background-color, color; transition-duration: 150ms; transition-timing-function: ease-out; }
+  .view-link[aria-current="page"] { background: var(--raised); color: var(--text); }
+  @media (hover: hover) { .view-link:hover { color: var(--text); } }
+  .span-5 { grid-column: span 5; } .span-7 { grid-column: span 7; }
+  @media (max-width: 960px) { .span-5, .span-7 { grid-column: span 12; } }
+
+  /* Weak spots */
+  .weak { display: grid; gap: 12px; }
+  .weak-row { display: grid; grid-template-columns: minmax(0, 120px) 1fr auto; align-items: center; gap: 12px; font-size: 13px; }
+  .weak-row .lbl { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .weak-row .val { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .stack { display: flex; gap: 2px; height: 8px; }
+  .stack i { display: block; height: 100%; border-radius: 2px; }
+  .k-solved { background: var(--chart-3); } .k-partial { background: var(--c-waiting); } .k-missed { background: var(--c-rejected); }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--faint); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .digest { list-style: none; margin: 0; padding: 0; }
+  .digest li { padding: 10px 0; border-top: 1px solid var(--rule); font-size: 14px; line-height: 20px; }
+  .digest li:first-child { border-top: 0; }
+  .digest .from { font-size: 12px; color: var(--faint); margin-top: 2px; }
+
+  /* OA list */
+  .oa-row { display: flex; align-items: center; gap: 12px; width: 100%; margin: -6px -8px; padding: 8px; border: 0; background: none; border-radius: var(--radius-control); color: inherit; text-align: left; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color 150ms ease-out; width: calc(100% + 16px); }
+  .oa-row:active { background: var(--active); transition-duration: 0ms; }
+  @media (hover: hover) { .oa-row:hover { background: var(--hover); } }
+  .qdots { display: inline-flex; gap: 4px; vertical-align: middle; margin-left: 2px; }
+  .qdots i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* OA form (inside the side panel) */
+  .drawer-title { font-size: 16px; font-weight: 600; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .saved { font-size: 12px; color: var(--faint); white-space: nowrap; transition: opacity 150ms ease-out; }
+  .form { display: grid; gap: 16px; }
+  .form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: grid; gap: 6px; min-width: 0; }
+  .field > span { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .field input, .field select, .field textarea, .q-row input, .q-row select { width: 100%; min-width: 0; height: 38px; background: var(--ground); border: 1px solid var(--control); border-radius: var(--radius-control); padding: 0 10px; color: var(--text); font: inherit; font-size: 14px; outline: none; transition: border-color 150ms ease-out; }
+  .field textarea { height: auto; min-height: 76px; padding: 8px 10px; line-height: 20px; resize: vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus, .q-row input:focus, .q-row select:focus { border-color: var(--c-applied); }
+  .field input[type=date] { color-scheme: dark; }
+  .form-sub { font-size: 13px; font-weight: 600; color: var(--text); margin: 8px 0 -6px; }
+  .q-list { display: grid; gap: 8px; }
+  /* One question: topic, result and remove on the first line; the optional name under them. */
+  .q-row { display: grid; grid-template-columns: 1fr 128px 32px; gap: 8px; align-items: center; padding: 10px; background: var(--raised); border-radius: 10px; }
+  .q-row [data-k=name] { grid-column: 1 / 3; grid-row: 2; }
+  .q-row .btn-icon { width: 32px; height: 32px; }
+  @media (max-width: 640px) { .form .two { grid-template-columns: 1fr; } }
+  #oaGrid { align-items: start; }
+  .form-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
+  .btn-danger { background: none; color: #f08a60; padding: 0 6px; }
+  @media (hover: hover) { .btn-danger:hover { color: #ffab8a; } }
+
+  .file-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 var(--gap); padding: 10px 12px 10px 16px; }
+  .file-notice .btn { height: 32px; flex: none; }
+  .menu { min-width: 260px; }
+  .menu-meta { max-width: 280px; }
+
+  /* Scrollbars: thin, dark, no track, so they sit quietly in the dark theme. */
+  * { scrollbar-width: thin; scrollbar-color: #3a3a38 transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3a3a38; border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background-color: #4a4946; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -293,27 +362,39 @@
 <div class="topbar" id="topbar">
   <div class="column">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 22 22" aria-hidden="true"><rect width="22" height="22" rx="6" fill="#3987e5"/><path d="M5 6h12l-4.5 5.5V17l-3-1.6v-3.9z" fill="#f0efec"/><circle cx="16.5" cy="16" r="2.5" fill="#199e70"/></svg>
-      <span class="brand-name">App Funnel</span>
+      <svg class="mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#f0efec"/><path d="M118 250l276-118-82 262-64-90z" fill="#141414"/><path d="M248 304l146-172-180 146z" fill="#3987e5"/><path d="M248 304l-4 82 50-52z" fill="#5b9bea"/></svg>
+      <span class="brand-name">JustApply</span>
     </div>
+    <nav class="views" aria-label="Sections">
+      <a class="view-link" id="navApps" href="#apps" aria-current="page">Applications</a>
+      <a class="view-link" id="navOas" href="#oas">OAs</a>
+    </nav>
     <div class="scope" id="scope"><span>No files loaded</span></div>
     <div class="bar-actions">
       <div class="menu-wrap">
-        <button class="btn btn-secondary btn-menu" id="rangeBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="rangeMenu" hidden>
+        <button class="btn btn-menu" id="rangeBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="rangeMenu" hidden>
           <span id="rangeLabel">All time</span>
           <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div class="menu" id="rangeMenu" role="menu" aria-label="Date range" hidden></div>
       </div>
-      <button class="btn btn-secondary" id="editBtn" type="button" hidden>Edit statuses</button>
+      <button class="btn btn-primary" id="newOaBtn" type="button" hidden>New OA</button>
       <button class="btn btn-primary" id="addBtn" type="button">Load export</button>
       <div class="menu-wrap">
         <button class="btn btn-secondary btn-icon" id="moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu" aria-label="More">
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></svg>
         </button>
         <div class="menu" id="moreMenu" role="menu" aria-label="More" hidden>
+          <button class="menu-item" role="menuitem" type="button" id="editBtn">Edit statuses</button>
+          <div class="menu-sep" role="separator"></div>
+          <button class="menu-item" role="menuitem" type="button" id="csvBtn">Download applications (CSV)</button>
           <button class="menu-item" role="menuitem" type="button" id="backupBtn">Download backup</button>
           <button class="menu-item" role="menuitem" type="button" id="restoreBtn">Restore from backup…</button>
+          <div class="menu-sep" role="separator"></div>
+          <div class="menu-meta" id="fileMeta"></div>
+          <button class="menu-item" role="menuitem" type="button" id="autoSaveBtn">Auto-save to a file…</button>
+          <button class="menu-item" role="menuitem" type="button" id="openFileBtn">Open data file…</button>
+          <button class="menu-item" role="menuitem" type="button" id="stopFileBtn" hidden>Stop auto-saving</button>
           <div class="menu-sep" role="separator"></div>
           <div class="menu-meta" id="historyMeta"></div>
           <button class="menu-item danger" role="menuitem" type="button" id="clearBtn">Delete all data…</button>
@@ -324,8 +405,10 @@
 </div>
 
 <main class="column">
-  <h1 class="sr-only">App Funnel</h1>
+  <h1 class="sr-only">JustApply</h1>
 
+  <div class="notice file-notice" id="fileNotice" hidden><span id="fileNoticeText"></span><button class="btn btn-secondary" id="fileNoticeBtn" type="button">Reconnect</button></div>
+  <div id="appsView">
   <section id="empty">
     <div class="drop" id="dropzone" tabindex="0" role="button" aria-label="Choose CSV files">
       <h2>Drop your tracker exports here</h2>
@@ -370,6 +453,28 @@
       </section>
     </div>
   </section>
+  </div>
+  <div id="oaView" hidden>
+    <section class="panel" id="oaEmpty" hidden>
+      <div class="panel-head"><h2>Online assessments</h2></div>
+      <p class="pane-meta" style="max-width:560px">Log each OA you take: the questions, their topics and how each went, plus what went well, what went wrong and what to do next time. Topics you struggle with show up here as weak spots.</p>
+      <div><button class="btn btn-primary" type="button" data-new-oa>Log your first OA</button></div>
+    </section>
+    <div class="grid" id="oaGrid" hidden>
+      <section class="panel span-5">
+        <div class="panel-head"><h2>Weak spots</h2>
+          <div class="legend" aria-hidden="true"><span><i class="k-solved"></i>Solved</span><span><i class="k-partial"></i>Partial</span><span><i class="k-missed"></i>Not solved</span></div>
+        </div>
+        <div class="weak" id="weak"></div>
+        <h3 class="sub-head">Next time</h3>
+        <ul class="digest" id="digest"></ul>
+      </section>
+      <section class="panel span-7">
+        <div class="panel-head"><h2>OAs</h2><span class="meta" id="oaMeta"></span></div>
+        <ul class="list" id="oaList"></ul>
+      </section>
+    </div>
+  </div>
 </main>
 
 <!-- Tucked-away details: one drawer, three tabs. Non-blocking, so no scrim; Esc or the close button closes it. -->
@@ -404,6 +509,43 @@
     </section>
   </div>
 </aside>
+
+<aside class="drawer" id="oaPanel" aria-labelledby="oaTitle" hidden>
+  <div class="drawer-head">
+    <h2 class="drawer-title" id="oaTitle">New OA</h2>
+    <span class="saved" id="oaSaved" aria-live="polite"></span>
+    <button class="btn btn-text btn-icon" id="oaClose" type="button" aria-label="Close OA">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <form class="form" id="oaForm" autocomplete="off" onsubmit="return false">
+      <div class="two">
+        <label class="field"><span>Company</span><input name="company" list="companyList" required></label>
+        <label class="field"><span>Role</span><input name="role" placeholder="Optional"></label>
+      </div>
+      <div class="two">
+        <label class="field"><span>Date</span><input name="date" type="date"></label>
+        <label class="field"><span>Platform</span><input name="platform" list="platformList" placeholder="HackerRank, CodeSignal…"></label>
+      </div>
+      <label class="field"><span>Score</span><input name="score" placeholder="e.g. 3/4 questions, or 520/600"></label>
+      <p class="form-sub">Questions</p>
+      <div class="q-list" id="qList"></div>
+      <div><button class="btn btn-secondary" id="addQ" type="button">Add question</button></div>
+      <p class="form-sub">Notes</p>
+      <label class="field"><span>Went well</span><textarea name="well" rows="3"></textarea></label>
+      <label class="field"><span>Went wrong</span><textarea name="wrong" rows="3"></textarea></label>
+      <label class="field"><span>Next time</span><textarea name="next" rows="3"></textarea></label>
+      <div class="form-foot">
+        <button class="btn btn-danger" id="oaDelete" type="button">Delete this OA</button>
+        <button class="btn btn-primary" id="oaDone" type="button">Done</button>
+      </div>
+    </form>
+  </div>
+</aside>
+<datalist id="companyList"></datalist>
+<datalist id="platformList"><option>HackerRank</option><option>CodeSignal</option><option>Codility</option><option>LeetCode</option><option>CoderPad</option><option>HackerEarth</option><option>Karat</option><option>Other</option></datalist>
+<datalist id="topicList"></datalist>
 
 <input type="file" id="fileInput" accept=".csv,text/csv" multiple hidden>
 <input type="file" id="restoreInput" accept=".json,application/json" hidden>
@@ -440,6 +582,7 @@ function reveal(el, show) {
   el._anim = anim;
   anim.onfinish = () => { el._anim = null; if (!show) el.hidden = true; };
 }
+// Storage keys keep the app's original name so data saved before the rename to JustApply still loads.
 const STORE_KEY = 'appfunnel.files.v1';
 const RANGE_KEY = 'appfunnel.range.v1';
 const OVERRIDE_KEY = 'appfunnel.overrides.v1';
@@ -449,10 +592,11 @@ const DAY = 86400000;
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Storage (never required) ---------- */
+const DATA_KEYS = ['appfunnel.files.v1', 'appfunnel.overrides.v1', 'appfunnel.oas.v1'];
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-  del(k) { try { localStorage.removeItem(k); } catch {} },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} if (DATA_KEYS.includes(k)) window.__dataChanged?.(); },
+  del(k) { try { localStorage.removeItem(k); } catch {} if (DATA_KEYS.includes(k)) window.__dataChanged?.(); },
 };
 
 /* ---------- Dates ---------- */
@@ -700,6 +844,7 @@ const RANGES = [
 ];
 
 /* ---------- State ---------- */
+let view = 'apps';       // 'apps' | 'oas'
 let files = [];          // normalized files
 let merged = null;
 let overrides = store.get(OVERRIDE_KEY) || [];   // [{ keys, bucket, csvBucket, label }]
@@ -778,8 +923,9 @@ function loadTexts(list, persist) {
 
 function saveFiles() {
   const payload = files.map(f => ({ name: f.name, text: f.text, at: f.at }));
+  window.__dataChanged?.();
   try { localStorage.setItem(STORE_KEY, JSON.stringify(payload)); }
-  catch { alert('This device is out of storage for App Funnel. Download a backup from the ⋯ menu, then delete old data.'); }
+  catch { alert('This device is out of storage for JustApply. Download a backup from the ⋯ menu, then delete old data.'); }
 }
 function readFiles(fileList) {
   const arr = [...fileList].filter(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
@@ -821,11 +967,13 @@ function render() {
   const hasData = files.length > 0;
   $('empty').hidden = hasData;
   $('dash').hidden = !hasData;
-  $('editBtn').hidden = $('rangeBtn').hidden = !hasData;
-  $('backupBtn').disabled = $('clearBtn').disabled = !hasData;
+  $('rangeBtn').hidden = !hasData;
+  $('editBtn').disabled = !hasData;
+  if (view === 'oas') $('rangeBtn').hidden = $('addBtn').hidden = true;
+  $('csvBtn').disabled = !hasData;
+  $('backupBtn').disabled = $('clearBtn').disabled = !hasData && !oas.length;
   const narrow = matchMedia('(max-width: 640px)').matches;
   $('addBtn').textContent = narrow ? 'Load' : hasData ? 'Load new export' : 'Load export';
-  $('editBtn').textContent = narrow ? 'Edit' : 'Edit statuses';
   const sc = $('scope'); sc.replaceChildren();
   const span = document.createElement('span');
   const kinds = [...new Set(files.map(f => LABEL[f.format]))];
@@ -854,8 +1002,11 @@ function render() {
    ['openWaiting', 'waiting', c('waiting') + c('ghosted'), 'waiting', 'var(--c-waiting)']].forEach(([id, tab, n, word, color]) => {
     const b = $(id); b.replaceChildren();
     const d = document.createElement('span'); d.className = 'dot'; d.style.background = color;
+    // Number and word sit in one text run so the chip's flex gap only separates the dot.
+    const label = document.createElement('span');
     const strong = document.createElement('b'); strong.textContent = n;
-    b.append(d, strong, document.createTextNode(' ' + word));
+    label.append(strong, document.createTextNode(' ' + word));
+    b.append(d, label);
     b.setAttribute('aria-expanded', String(drawerOpen && drawerTab === tab));
     b.setAttribute('aria-controls', 'drawer');
   });
@@ -1215,8 +1366,7 @@ function renderSankey(apps) {
     .extent([[m.left, m.top], [W - m.right, H - m.bottom]]);
   const graph = sk({ nodes: nodes.map(d => ({ ...d })), links: links.map(d => ({ ...d })) });
 
-  // Reuse the SVG so a range switch morphs the funnel from where it is now. A new transition on the same
-  // element interrupts the old one and starts from the current on-screen values, so rapid switches never jump.
+  // Reuse the SVG and update the shapes in place when the range changes.
   let svg = d3.select(host).select('svg');
   if (svg.empty() || +svg.attr('width') !== W) {
     host.replaceChildren();
@@ -1226,7 +1376,7 @@ function renderSankey(apps) {
   }
   svg.attr('width', W).attr('height', H).attr('role', 'img')
     .attr('aria-label', 'Funnel: ' + graph.nodes.map(d => `${NODE_NAME[d.id]} ${d.value}`).join(', '));
-  const t = d3.transition().duration(MOTION ? 420 : 0).ease(d3.easeCubicOut);
+  const t = d3.transition().duration(0); // charts update in place, without animating
   const path = d3.sankeyLinkHorizontal();
 
   const linkSel = svg.select('g.links').selectAll('path').data(graph.links, d => d.target.id)
@@ -1383,17 +1533,39 @@ $('dropzone').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key 
 $('addBtn').addEventListener('click', () => input.click());
 $('clearBtn').addEventListener('click', () => {
   closeMenu();
-  if (!confirm(`Delete all ${plural(files.length, 'saved export')} and ${plural(overrides.length, 'edit')} from this device? Download a backup first if you might want them back.`)) return;
-  files = []; merged = null; lastDiff = null; overrides = [];
-  [STORE_KEY, SNAP_KEY, DIFF_KEY, OVERRIDE_KEY].forEach(k => store.del(k));
-  render();
+  if (!confirm(`Delete all ${plural(files.length, 'saved export')}, ${plural(overrides.length, 'edit')} and ${plural(oas.length, 'OA')} from this device${fileState === 'on' ? ` (and empty ${fileHandle.name})` : ''}? Download a backup first if you might want them back.`)) return;
+  files = []; merged = null; lastDiff = null; overrides = []; oas = [];
+  [STORE_KEY, SNAP_KEY, DIFF_KEY, OVERRIDE_KEY, OA_KEY].forEach(k => store.del(k));
+  render(); renderOAs();
 });
 $('backupBtn').addEventListener('click', () => {
   closeMenu();
-  const data = { app: 'App Funnel', version: 1, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides };
+  const data = { app: 'JustApply', version: 1, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas };
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `app-funnel-backup-${ymd(today)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  a.download = `justapply-backup-${ymd(today)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+// One row per application, after merging and dedupe, with your edits applied. Status words are ones this app
+// reads back, so the file can be dropped in again later.
+$('csvBtn').addEventListener('click', () => {
+  closeMenu();
+  const STATUS_WORD = { applied: 'Applied', progress: 'Screening', offer: 'Offer', rejected: 'Rejected', withdrawn: 'Withdrawn' };
+  const OUTCOME = { waiting: 'Waiting for reply', ghosted: 'No reply after 30 days', progress: 'Screen / interview', offer: 'Offer', rejected: 'Rejected', withdrawn: 'Withdrawn' };
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const head = ['Company', 'Role', 'Location', 'Status', 'Outcome', 'Applied date', 'Days since applied', 'Reply date', 'Source', 'Edited by you', 'Link'];
+  const rows = [...merged.apps]
+    .sort((a, b) => (b.date || 0) - (a.date || 0) || a.company.localeCompare(b.company))
+    .map(a => [
+      a.company, a.role, a.location, STATUS_WORD[a.bucket], OUTCOME[a.outcome],
+      a.date ? ymd(a.date) : '', a.date ? Math.max(0, Math.floor((today - a.date) / DAY)) : '',
+      ['progress', 'offer', 'rejected'].includes(a.bucket) && a.statusDate ? ymd(a.statusDate) : '',
+      a.sources.map(x => LABEL[x]).join(' + '), a.edited ? 'Yes' : '', a.url,
+    ]);
+  const csv = '\uFEFF' + [head, ...rows].map(r => r.map(esc).join(',')).join('\r\n'); // BOM so Excel reads UTF-8
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `justapply-applications-${ymd(today)}.csv`; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 $('restoreBtn').addEventListener('click', () => { closeMenu(); $('restoreInput').click(); });
@@ -1402,15 +1574,18 @@ $('restoreInput').addEventListener('change', async (e) => {
   if (!f) return;
   try {
     const data = JSON.parse(await f.text());
-    if (data.app !== 'App Funnel' || !Array.isArray(data.files)) throw new Error('not a backup');
+    if (!['JustApply', 'App Funnel'].includes(data.app) || !Array.isArray(data.files)) throw new Error('not a backup');
     // Restoring adds to what is here; nothing on this device is overwritten.
     (data.overrides || []).forEach(o => { if (!overrides.some(x => sharesKey(x.keys, o.keys))) overrides.push(o); });
     store.set(OVERRIDE_KEY, overrides);
-    loadTexts(data.files, true);
-  } catch { alert("That file isn't an App Funnel backup."); }
+    (data.oas || []).forEach(o => { const cur = oas.find(x => x.id === o.id); if (!cur) oas.push(o); else if ((o.updatedAt || 0) > (cur.updatedAt || 0)) Object.assign(cur, o); });
+    saveOAs();
+    if (data.files.length) loadTexts(data.files, true); else render();
+    if (view === 'oas') renderOAs();
+  } catch { alert("That file isn't a JustApply backup."); }
 });
 $('newDismiss').addEventListener('click', () => { lastDiff = null; store.del(DIFF_KEY); reveal($('whatsNew'), false); });
-$('editBtn').addEventListener('click', (e) => (drawerOpen && drawerTab === 'edit') ? closeDrawer() : openDrawer('edit', e.currentTarget));
+$('editBtn').addEventListener('click', () => { closeMenu(); if (view !== 'apps') location.hash = '#apps'; openDrawer('edit', $('moreBtn')); });
 $('openReplies').addEventListener('click', (e) => (drawerOpen && drawerTab === 'replies') ? closeDrawer() : openDrawer('replies', e.currentTarget));
 $('openWaiting').addEventListener('click', (e) => (drawerOpen && drawerTab === 'waiting') ? closeDrawer() : openDrawer('waiting', e.currentTarget));
 $('drawerClose').addEventListener('click', () => closeDrawer());
@@ -1444,12 +1619,320 @@ addEventListener('drop', e => {
 });
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => merged && render(), 120); });
 
+/* ---------- OAs (separate section) ---------- */
+// Each OA: { id, company, role, date 'YYYY-MM-DD', platform, score, questions: [{ topic, name, outcome }], well, wrong, next, createdAt, updatedAt }
+const OA_KEY = 'appfunnel.oas.v1';
+let oas = store.get(OA_KEY) || [];
+const OUTCOMES = [['solved', 'Solved'], ['partial', 'Partial'], ['missed', 'Not solved']];
+const OUT_CLASS = { solved: 'k-solved', partial: 'k-partial', missed: 'k-missed' };
+const TOPICS = ['Arrays', 'Strings', 'Hash maps', 'Two pointers', 'Sliding window', 'Binary search', 'Sorting', 'Stacks', 'Queues', 'Linked lists', 'Trees', 'Graphs', 'BFS / DFS', 'Heaps', 'Greedy', 'Dynamic programming', 'Backtracking', 'Intervals', 'Math', 'Bit manipulation', 'Recursion', 'SQL', 'Debugging', 'System design'];
+const saveOAs = () => store.set(OA_KEY, oas);
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+const topicKey = (t) => t.trim().toLowerCase().replace(/\s+/g, ' ');
+
+function setView(v) {
+  view = v;
+  $('appsView').hidden = v !== 'apps';
+  $('oaView').hidden = v !== 'oas';
+  $('navApps').setAttribute('aria-current', v === 'apps' ? 'page' : 'false');
+  $('navOas').setAttribute('aria-current', v === 'oas' ? 'page' : 'false');
+  $('newOaBtn').hidden = v !== 'oas';
+  $('addBtn').hidden = v !== 'apps';
+  $('scope').style.visibility = v === 'apps' ? '' : 'hidden';
+  if (v === 'oas') { closeDrawer(true); $('rangeBtn').hidden = true; renderOAs(); }
+  else { closeOA(true); render(); }
+  document.title = v === 'oas' ? 'OAs · JustApply' : 'JustApply';
+}
+
+function renderOAs() {
+  const has = oas.length > 0;
+  $('oaEmpty').hidden = has;
+  $('oaGrid').hidden = !has;
+  if (!has) return;
+  const sorted = [...oas].sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.createdAt - a.createdAt);
+  const qCount = oas.reduce((s, o) => s + o.questions.length, 0);
+  $('oaMeta').textContent = `${plural(oas.length, 'OA')}, ${plural(qCount, 'question')}`;
+
+  // OA list
+  const ul = $('oaList'); ul.replaceChildren();
+  sorted.forEach(o => {
+    const li = document.createElement('li');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'oa-row';
+    b.setAttribute('aria-label', `Open the ${o.company || 'untitled'} OA`);
+    const m = document.createElement('div'); m.className = 'li-main';
+    const nm = document.createElement('div'); nm.className = 'li-name'; nm.textContent = o.company || 'Untitled OA';
+    const sub = document.createElement('div'); sub.className = 'li-sub';
+    sub.textContent = [o.role, o.platform, o.score].filter(Boolean).join(' · ') || 'No details yet';
+    m.append(nm, sub);
+    const end = document.createElement('div'); end.className = 'li-end';
+    const dt = document.createElement('div'); dt.className = 'li-date'; dt.style.marginTop = '0';
+    dt.textContent = o.date ? parseDate(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+    const dots = document.createElement('div'); dots.className = 'qdots'; dots.style.marginTop = '6px';
+    o.questions.forEach(q => { const i = document.createElement('i'); i.className = OUT_CLASS[q.outcome]; dots.appendChild(i); });
+    end.append(dt, dots);
+    b.append(m, end); b.onclick = () => openOA(o.id, b);
+    li.appendChild(b); ul.appendChild(li);
+  });
+
+  // Weak spots: per topic, solved / partial / missed; most trouble first.
+  const byTopic = new Map();
+  oas.forEach(o => o.questions.forEach(q => {
+    if (!q.topic.trim()) return;
+    const k = topicKey(q.topic);
+    if (!byTopic.has(k)) byTopic.set(k, { label: q.topic.trim(), solved: 0, partial: 0, missed: 0 });
+    byTopic.get(k)[q.outcome]++;
+  }));
+  const topics = [...byTopic.values()].map(t => ({ ...t, total: t.solved + t.partial + t.missed, trouble: t.missed * 2 + t.partial }))
+    .sort((a, b) => b.trouble - a.trouble || b.total - a.total || a.label.localeCompare(b.label));
+  const max = Math.max(1, ...topics.map(t => t.total));
+  const weak = $('weak'); weak.replaceChildren();
+  if (!topics.length) {
+    const d = document.createElement('div'); d.className = 'empty-line'; d.textContent = 'Add questions with a topic to your OAs to see which topics trip you up.';
+    weak.appendChild(d);
+  }
+  topics.slice(0, 10).forEach(t => {
+    const row = document.createElement('div'); row.className = 'weak-row';
+    const l = document.createElement('span'); l.className = 'lbl'; l.textContent = t.label;
+    const st = document.createElement('span'); st.className = 'stack'; st.style.width = (t.total / max * 100) + '%';
+    [['solved', t.solved], ['partial', t.partial], ['missed', t.missed]].forEach(([k, n]) => { if (!n) return; const i = document.createElement('i'); i.className = OUT_CLASS[k]; i.style.flex = n; st.appendChild(i); });
+    const v = document.createElement('span'); v.className = 'val'; v.textContent = `${t.solved} of ${t.total} solved`;
+    row.append(l, st, v); weak.appendChild(row);
+  });
+
+  // Latest "next time" notes
+  const dg = $('digest'); dg.replaceChildren();
+  const notes = sorted.filter(o => o.next && o.next.trim()).slice(0, 3);
+  if (!notes.length) { const li = document.createElement('li'); li.className = 'li-sub'; li.textContent = 'Your "Next time" notes will collect here.'; dg.appendChild(li); }
+  notes.forEach(o => {
+    const li = document.createElement('li');
+    const t = document.createElement('div'); t.textContent = o.next.trim();
+    const f = document.createElement('div'); f.className = 'from'; f.textContent = [o.company, o.date && parseDate(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })].filter(Boolean).join(' · ');
+    li.append(t, f); dg.appendChild(li);
+  });
+}
+
+/* OA side panel: every change saves itself, with a quiet "Saved" stamp. */
+let editingId = null, oaReturn = null, savedTimer = null;
+function fillLists() {
+  const companies = [...new Set([...(merged ? merged.apps.map(a => a.company) : []), ...oas.map(o => o.company)].filter(Boolean))].sort();
+  $('companyList').replaceChildren(...companies.map(c => Object.assign(document.createElement('option'), { value: c })));
+  const used = oas.flatMap(o => o.questions.map(q => q.topic.trim())).filter(Boolean);
+  const all = [...new Map([...used, ...TOPICS].map(t => [topicKey(t), t])).values()];
+  $('topicList').replaceChildren(...all.map(t => Object.assign(document.createElement('option'), { value: t })));
+}
+function qRow(q) {
+  const row = document.createElement('div'); row.className = 'q-row';
+  const topic = document.createElement('input'); topic.setAttribute('list', 'topicList'); topic.placeholder = 'Topic'; topic.value = q.topic; topic.setAttribute('aria-label', 'Question topic'); topic.dataset.k = 'topic';
+  const name = document.createElement('input'); name.placeholder = 'Question (optional)'; name.value = q.name; name.setAttribute('aria-label', 'Question name'); name.dataset.k = 'name';
+  const out = document.createElement('select'); out.setAttribute('aria-label', 'How it went'); out.dataset.k = 'outcome';
+  OUTCOMES.forEach(([v, l]) => out.appendChild(Object.assign(document.createElement('option'), { value: v, textContent: l })));
+  out.value = q.outcome;
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-text btn-icon'; del.setAttribute('aria-label', 'Remove question');
+  del.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>';
+  del.onclick = () => { row.remove(); saveOA(); };
+  row.append(topic, out, del, name);
+  return row;
+}
+function openOA(id, from) {
+  fillLists();
+  let o = id && oas.find(x => x.id === id);
+  if (!o) { o = { id: newId(), company: '', role: '', date: ymd(today), platform: '', score: '', questions: [{ topic: '', name: '', outcome: 'solved' }], well: '', wrong: '', next: '', createdAt: Date.now(), updatedAt: Date.now() }; }
+  editingId = o.id;
+  const f = $('oaForm');
+  ['company', 'role', 'date', 'platform', 'score', 'well', 'wrong', 'next'].forEach(k => { f.elements[k].value = o[k] || ''; });
+  $('qList').replaceChildren(...o.questions.map(qRow));
+  $('oaTitle').textContent = o.company || 'New OA';
+  $('oaSaved').textContent = '';
+  $('oaDelete').hidden = !oas.some(x => x.id === o.id);
+  if ($('oaPanel').hidden) { oaReturn = from || document.activeElement; slideDrawer($('oaPanel'), true); }
+  f.elements.company.focus({ preventScroll: true });
+}
+function closeOA(instant) {
+  const p = $('oaPanel');
+  if (p.hidden && !p._anim) return;
+  // An OA that was never given a company or any content is dropped instead of saved.
+  const o = oas.find(x => x.id === editingId);
+  if (o && !o.company.trim() && !o.questions.some(q => q.topic || q.name) && !o.well && !o.wrong && !o.next) { oas = oas.filter(x => x !== o); saveOAs(); }
+  editingId = null;
+  if (instant) p.hidden = true; else slideDrawer(p, false);
+  if (!instant && oaReturn && document.contains(oaReturn)) oaReturn.focus({ preventScroll: true });
+  if (view === 'oas') renderOAs();
+}
+function saveOA() {
+  if (!editingId) return;
+  const f = $('oaForm');
+  const data = {};
+  ['company', 'role', 'date', 'platform', 'score', 'well', 'wrong', 'next'].forEach(k => { data[k] = f.elements[k].value; });
+  data.questions = [...$('qList').children].map(r => ({ topic: r.querySelector('[data-k=topic]').value, name: r.querySelector('[data-k=name]').value, outcome: r.querySelector('[data-k=outcome]').value }))
+    .filter(q => q.topic.trim() || q.name.trim() || q.outcome !== 'solved');
+  let o = oas.find(x => x.id === editingId);
+  if (!o) { o = { id: editingId, createdAt: Date.now() }; oas.push(o); }
+  Object.assign(o, data, { updatedAt: Date.now() });
+  saveOAs();
+  $('oaTitle').textContent = o.company || 'New OA';
+  $('oaDelete').hidden = false;
+  $('oaSaved').textContent = 'Saved';
+  clearTimeout(savedTimer); savedTimer = setTimeout(() => { $('oaSaved').textContent = ''; }, 1600);
+  renderOAs();
+}
+let saveTimer = null;
+$('oaForm').addEventListener('input', () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveOA, 250); });
+$('oaForm').addEventListener('change', () => { clearTimeout(saveTimer); saveOA(); });
+$('addQ').addEventListener('click', () => { const r = qRow({ topic: '', name: '', outcome: 'solved' }); $('qList').appendChild(r); r.querySelector('input').focus(); });
+$('oaClose').addEventListener('click', () => { clearTimeout(saveTimer); saveOA(); closeOA(); });
+$('oaDone').addEventListener('click', () => { clearTimeout(saveTimer); saveOA(); closeOA(); });
+$('oaDelete').addEventListener('click', () => {
+  const o = oas.find(x => x.id === editingId);
+  if (!o || !confirm(`Delete the ${o.company || 'untitled'} OA and its notes?`)) return;
+  oas = oas.filter(x => x !== o); saveOAs(); editingId = null; closeOA();
+});
+$('newOaBtn').addEventListener('click', (e) => openOA(null, e.currentTarget));
+document.addEventListener('click', (e) => { if (e.target.closest('[data-new-oa]')) openOA(null, e.target.closest('[data-new-oa]')); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('oaPanel').hidden && !openMenuBtn) { clearTimeout(saveTimer); saveOA(); closeOA(); } });
+addEventListener('hashchange', () => setView(location.hash === '#oas' ? 'oas' : 'apps'));
+
+/* ---------- Auto-save to a file on disk (Chrome, Edge, Arc, Brave) ----------
+   The person picks a JSON file once (e.g. in iCloud Drive). Every change rewrites it, so the data outlives
+   the browser's own storage. The file uses the backup format, so Restore can read it too. The file handle
+   lives in IndexedDB (handles can't go in localStorage). */
+const FS_OK = 'showSaveFilePicker' in window;
+const DIRTY_KEY = 'appfunnel.dirty.v1';      // changed locally since the last successful write
+const idb = (() => {
+  let dbp;
+  const db = () => dbp || (dbp = new Promise((res, rej) => { const r = indexedDB.open('justapply', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+  const tx = (mode, fn) => db().then(d => new Promise((res, rej) => { const t = d.transaction('kv', mode); const q = fn(t.objectStore('kv')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }));
+  return { get: k => tx('readonly', s => s.get(k)), set: (k, v) => tx('readwrite', s => s.put(v, k)), del: k => tx('readwrite', s => s.delete(k)) };
+})();
+let fileHandle = null, fileState = 'off', fileSavedAt = null, writeTimer = null, writing = Promise.resolve();
+// fileState: 'off' (no file) | 'on' (saving) | 'paused' (needs permission again) | 'error'
+
+const snapshotData = () => ({ app: 'JustApply', version: 2, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas });
+async function permitted(h, ask) {
+  if (!h.queryPermission) return true; // e.g. origin-private files used in tests
+  const o = { mode: 'readwrite' };
+  if ((await h.queryPermission(o)) === 'granted') return true;
+  return ask ? (await h.requestPermission(o)) === 'granted' : false;
+}
+function dataChanged() {
+  try { localStorage.setItem(DIRTY_KEY, '1'); } catch {}
+  if (fileState !== 'on') return;
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(writeFile, 700);
+}
+function writeFile() {
+  if (!fileHandle || fileState !== 'on') return writing;
+  writing = writing.then(async () => {
+    try {
+      const w = await fileHandle.createWritable();
+      await w.write(JSON.stringify(snapshotData()));
+      await w.close();
+      fileSavedAt = new Date();
+      try { localStorage.removeItem(DIRTY_KEY); } catch {}
+    } catch (e) {
+      fileState = (e && e.name === 'NotAllowedError') ? 'paused' : 'error';
+    }
+    renderFileStatus();
+  });
+  return writing;
+}
+// Bring data from the file into the app. mode 'replace' trusts the file; 'merge' keeps both sides.
+function absorb(data, mode) {
+  if (!data || !Array.isArray(data.files)) return;
+  if (mode === 'replace') {
+    files = []; merged = null; overrides = data.overrides || []; oas = data.oas || [];
+  } else {
+    (data.overrides || []).forEach(o => { if (!overrides.some(x => sharesKey(x.keys, o.keys))) overrides.push(o); });
+    (data.oas || []).forEach(o => { const cur = oas.find(x => x.id === o.id); if (!cur) oas.push(o); else if ((o.updatedAt || 0) > (cur.updatedAt || 0)) Object.assign(cur, o); });
+  }
+  store.set(OVERRIDE_KEY, overrides); saveOAs();
+  if (data.files.length) loadTexts(data.files, true);
+  else { if (mode === 'replace') { [STORE_KEY, SNAP_KEY, DIFF_KEY].forEach(k => store.del(k)); } render(); }
+  if (view === 'oas') renderOAs();
+}
+async function readFile(h) {
+  const f = await h.getFile();
+  const t = await f.text();
+  if (!t.trim()) return null;
+  return JSON.parse(t);
+}
+async function connect(h, how) {
+  fileHandle = h; await idb.set('file', h);
+  fileState = 'on';
+  if (how === 'new') { await writeFile(); }
+  else {
+    let data = null;
+    try { data = await readFile(h); } catch { alert("That file isn't JustApply data."); fileState = 'off'; fileHandle = null; await idb.del('file'); renderFileStatus(); return; }
+    const dirty = localStorage.getItem(DIRTY_KEY) === '1';
+    // Reconnecting with nothing changed here: the file is the truth. Otherwise keep both and write the union back.
+    absorb(data, how === 'reconnect' && !dirty ? 'replace' : 'merge');
+    await writeFile();
+  }
+  renderFileStatus();
+}
+async function startAutoSave() {
+  closeMenu();
+  try {
+    const h = await showSaveFilePicker({ suggestedName: 'JustApply.json', types: [{ description: 'JustApply data', accept: { 'application/json': ['.json'] } }] });
+    await connect(h, 'new');
+  } catch (e) { if (e.name !== 'AbortError') alert("Couldn't start auto-saving to that file."); }
+}
+async function openDataFile() {
+  closeMenu();
+  try {
+    const [h] = await showOpenFilePicker({ types: [{ description: 'JustApply data', accept: { 'application/json': ['.json'] } }] });
+    if (!(await permitted(h, true))) return;
+    await connect(h, 'open');
+  } catch (e) { if (e.name !== 'AbortError') alert("Couldn't open that file."); }
+}
+async function stopAutoSave() {
+  closeMenu();
+  fileHandle = null; fileState = 'off'; fileSavedAt = null; await idb.del('file');
+  renderFileStatus();
+}
+async function reconnect() {
+  if (!fileHandle) return;
+  if (await permitted(fileHandle, true)) await connect(fileHandle, 'reconnect');
+}
+function renderFileStatus() {
+  const name = fileHandle ? fileHandle.name : '';
+  $('autoSaveBtn').hidden = !FS_OK || fileState !== 'off';
+  $('openFileBtn').hidden = !FS_OK || fileState !== 'off';
+  $('stopFileBtn').hidden = fileState === 'off';
+  const meta = $('fileMeta');
+  meta.textContent = !FS_OK ? 'Auto-save to a file needs Chrome, Edge, Arc or Brave.'
+    : fileState === 'off' ? 'Not auto-saving to a file. Your data is only in this browser.'
+    : fileState === 'on' ? `Auto-saving to ${name}` + (fileSavedAt ? ` · saved ${fileSavedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : '')
+    : fileState === 'paused' ? `Auto-save to ${name} is paused.` : `Couldn't write to ${name}.`;
+  const n = $('fileNotice');
+  n.hidden = !(fileState === 'paused' || fileState === 'error');
+  $('fileNoticeText').textContent = fileState === 'error' ? `Couldn't write to ${name}. It may have been moved or deleted.` : `Auto-save to ${name} is paused until you allow it again.`;
+  $('fileNoticeBtn').textContent = fileState === 'error' ? 'Choose a file' : 'Reconnect';
+}
+$('autoSaveBtn').addEventListener('click', startAutoSave);
+$('openFileBtn').addEventListener('click', openDataFile);
+$('stopFileBtn').addEventListener('click', stopAutoSave);
+$('fileNoticeBtn').addEventListener('click', () => fileState === 'error' ? startAutoSave() : reconnect());
+// On launch: pick the saved file back up. Chrome remembers "Allow on every visit"; otherwise this waits for Reconnect.
+(async () => {
+  renderFileStatus();
+  if (!FS_OK) return;
+  try {
+    const h = await idb.get('file');
+    if (!h) return;
+    fileHandle = h;
+    if (await permitted(h, false)) await connect(h, 'reconnect');
+    else { fileState = 'paused'; renderFileStatus(); }
+  } catch { /* no saved file */ }
+})();
+window.__dataChanged = dataChanged;
+
 // Ask the browser not to evict this app's storage (granted automatically for an installed app).
 navigator.storage?.persist?.().catch(() => {});
 // Offline + installable when served over http(s); a file:// page skips this.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 const saved = store.get(STORE_KEY);
 if (Array.isArray(saved) && saved.length) loadTexts(saved, false); else render();
+setView(location.hash === '#oas' ? 'oas' : 'apps');
 })();
 </script>
 </body>
