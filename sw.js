@@ -1,11 +1,11 @@
 // JustApply service worker: makes the app open offline and installable.
 // The page itself is fetched network-first so a new version shows up as soon as you're online;
 // everything else (icons, the bundled libraries) is served from the cache. Nothing is fetched from other sites.
-const CACHE = 'justapply-v3';
+const CACHE = 'justapply-v4';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
-  './vendor/papaparse.min.js', './vendor/d3.min.js', './vendor/d3-sankey.min.js',
+  './vendor/papaparse.min.js', './vendor/d3.min.js', './vendor/d3-sankey.min.js', './vendor/Geist-Variable.woff2',
 ];
 
 self.addEventListener('install', (e) => {

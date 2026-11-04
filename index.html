@@ -394,10 +394,152 @@
   .dlg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 20px 20px; }
   .dlg-actions { display: flex; gap: 8px; }
 
+  /* ================= Ethereal Glass layer =================
+     OLED ground with two faint glows, double-bezel cards (a glass tray around a darker core),
+     a floating glass nav pill, pill CTAs with a nested icon circle, spring easing throughout. */
+  @font-face { font-family: "Geist"; src: url("vendor/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  :root {
+    --ground: #050505;
+    --surface: #0b0b0c;          /* the inner core */
+    --raised: #151517;
+    --active: #1f1f22;
+    --hover: rgba(255,255,255,0.045);
+    --border: rgba(255,255,255,0.08);
+    --rule: rgba(255,255,255,0.06);
+    --control: rgba(255,255,255,0.14);
+    --spring: cubic-bezier(0.32, 0.72, 0, 1);
+    --glass: rgba(16,16,18,0.68);
+    --radius-card: 28px;
+    font-family: "Geist", system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.005em;
+  }
+  html, body { background: var(--ground); }
+  .ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(42rem 28rem at 12% -6%, rgba(57,135,229,0.16), transparent 70%),
+      radial-gradient(36rem 26rem at 96% 18%, rgba(25,158,112,0.10), transparent 70%),
+      radial-gradient(50rem 30rem at 50% 120%, rgba(57,135,229,0.06), transparent 70%); }
+  .ambient::after { content: ""; position: absolute; inset: 0; opacity: 0.035; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  main { position: relative; z-index: 1; padding-top: 112px; padding-bottom: 96px; }
+
+  /* Floating glass nav pill (fixed, so it may blur) */
+  .topbar { position: fixed; top: 16px; left: 0; right: 0; z-index: 20; background: none; pointer-events: none; }
+  .topbar.scrolled { box-shadow: none; }
+  .topbar .column { pointer-events: auto; height: 60px; padding: 0 8px 0 18px; border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.09); box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 20px 50px -20px rgba(0,0,0,0.7); }
+  .brand { font-weight: 600; letter-spacing: -0.01em; }
+  .views { background: rgba(255,255,255,0.04); border-radius: 999px; padding: 3px; gap: 0; }
+  .view-link { height: 32px; border-radius: 999px; padding: 0 14px; transition-timing-function: var(--spring); transition-duration: 300ms; }
+  .view-link[aria-current="page"] { background: rgba(255,255,255,0.09); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+  .scope::before { color: rgba(255,255,255,0.18); }
+
+  /* Buttons: pills; the primary carries a nested icon circle that moves on hover */
+  .btn { border-radius: 999px; transition-timing-function: var(--spring); transition-duration: 300ms; }
+  .btn-secondary { background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+  .btn-primary { background: #f0efec; color: #0a0a0b; font-weight: 600; }
+  .btn-cta { display: inline-flex; align-items: center; gap: 10px; padding: 0 5px 0 18px; height: 42px; }
+  .cta-ic { width: 32px; height: 32px; flex: none; border-radius: 999px; display: grid; place-items: center; background: rgba(0,0,0,0.08); transition: transform 400ms var(--spring); }
+  .cta-ic svg { width: 14px; height: 14px; }
+  .btn-menu { border-radius: 999px; }
+  .btn-icon { border-radius: 999px; }
+  @media (hover: hover) {
+    .btn-primary:hover { background: #ffffff; }
+    .btn-cta:hover .cta-ic { transform: translate(2px, -1px) scale(1.05); }
+    .tile-btn:hover .cta-ic { transform: translate(2px, -2px) scale(1.06); }
+    .tile:hover { border-color: rgba(255,255,255,0.14); }
+  }
+  @media (prefers-reduced-motion: no-preference) { .btn:not(:disabled):active { scale: 0.98; } }
+
+  /* Double bezel: tray (shell) + core */
+  .grid { gap: 20px; }
+  .panel { padding: 6px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius-card);
+    box-shadow: 0 40px 80px -40px rgba(0,0,0,0.75); transition: border-color 400ms var(--spring); }
+  .core { flex: 1; display: flex; flex-direction: column; min-width: 0; border-radius: calc(var(--radius-card) - 6px); padding: 28px 30px;
+    background: linear-gradient(180deg, #0f0f11 0%, #0a0a0b 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+  @media (max-width: 640px) { .core { padding: 22px 18px; } }
+  .notice { border-radius: 999px; padding: 10px 18px; background: rgba(255,255,255,0.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07); }
+
+  /* Panel headings as eyebrow pills */
+  .panel-head h2, .eyebrow { display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 999px; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); background: rgba(255,255,255,0.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07); line-height: 1; }
+  .panel-head { margin-bottom: 22px; align-items: center; }
+
+  /* Big confident figures */
+  .figures { margin-bottom: 28px; }
+  .fig { border-left-color: rgba(255,255,255,0.07); }
+  .fig.lead .fig-value { font-size: 72px; line-height: 72px; font-weight: 600; letter-spacing: -0.045em; }
+  .fig.lead .fig-value small { font-size: 18px; letter-spacing: 0; margin-left: 8px; }
+  .fig-value { font-size: 32px; line-height: 36px; font-weight: 500; letter-spacing: -0.03em; }
+  .fig-label { font-size: 13px; color: var(--faint); margin-bottom: 4px; }
+  @media (max-width: 640px) { .fig.lead .fig-value { font-size: 52px; line-height: 54px; } .fig-value { font-size: 26px; } }
+
+  /* Bento tiles beside the funnel */
+  .tiles { display: grid; grid-template-rows: 1fr 1fr; gap: 20px; min-width: 0; }
+  .tile .core { padding: 0; }
+  .tile-btn { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; width: 100%; height: 100%; padding: 24px 26px; cursor: pointer; border-radius: calc(var(--radius-card) - 6px); -webkit-tap-highlight-color: transparent; }
+  .tile-btn:focus-visible { outline: 2px solid var(--c-applied); outline-offset: 2px; }
+  .tile-btn .eyebrow { align-self: flex-start; }
+  .tile-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+  .tile-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; min-width: 0; }
+  .tile-co { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .tile-big { font-size: 56px; line-height: 56px; font-weight: 600; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+  .tile-sub { font-size: 13px; color: var(--faint); margin-top: -8px; }
+  .tile-bars { display: flex; align-items: flex-end; gap: 6px; height: 40px; }
+  .tile-bars i { flex: 1; height: 100%; border-radius: 6px; background: rgba(57,135,229,0.55); transform-origin: bottom; }
+  .tile-bars i.late { background: rgba(240,239,236,0.35); }
+  .tile-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); margin-top: -8px; }
+  .tile-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; color: var(--muted); }
+  .tile-foot .cta-ic { background: rgba(255,255,255,0.07); color: var(--text); }
+  @media (max-width: 960px) { .tiles { grid-template-rows: none; grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 640px) { .tiles { grid-template-columns: 1fr; } }
+
+  /* Goal strip, notes, lists */
+  .goal { border-radius: 20px; background: rgba(255,255,255,0.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+  .goal-bar i { transition: transform 700ms var(--spring); }
+  .pill { border-radius: 999px; padding: 0 9px; }
+  .drop { border-radius: var(--radius-card); background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.14); padding: 88px 24px; }
+  .drop h2 { font-size: 28px; letter-spacing: -0.03em; font-weight: 600; }
+
+  /* Floating glass layers (fixed, so they may blur) */
+  .drawer, .menu, .day-pop { background: var(--glass); backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.09); box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 40px 90px -30px rgba(0,0,0,0.8); }
+  .drawer { border-radius: 28px; }
+  .menu { border-radius: 18px; padding: 6px; }
+  .menu-item { border-radius: 12px; }
+  .day-pop { border-radius: 22px; }
+  .dialog { border-radius: 28px; background: #0b0b0c; border: 1px solid rgba(255,255,255,0.09); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 40px 120px -30px rgba(0,0,0,0.85); }
+  .dialog::backdrop { background: rgba(0,0,0,0.55); backdrop-filter: blur(6px); }
+  .share-img { border-radius: 18px; }
+  .tab { border-radius: 999px; }
+  #tip { border-radius: 12px; background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .field input, .field select, .field textarea, .q-row input, .q-row select, .editor input[type=search] { border-radius: 12px; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); }
+  .q-row { border-radius: 16px; background: rgba(255,255,255,0.035); }
+
+  /* Scroll reveal: a gentle, heavy fade-up (transform / opacity / filter only) */
+  .reveal { opacity: 0; transform: translateY(28px); filter: blur(8px); }
+  .reveal.in { opacity: 1; transform: none; filter: blur(0); transition: opacity 900ms var(--spring), transform 900ms var(--spring), filter 900ms var(--spring); }
+  @media (max-width: 640px) {
+    .topbar { top: 10px; }
+    .topbar .column { width: calc(100% - 20px); height: 56px; padding: 0 6px 0 12px; }
+    main { padding-top: 92px; }
+    .btn-cta { padding: 0 4px 0 14px; height: 40px; }
+    .topbar .column { gap: 6px; }
+    .views { padding: 2px; }
+    .view-link { padding: 0 10px; font-size: 13px; height: 30px; }
+    #rangeBtn { padding: 0 6px; font-size: 13px; }
+    #rangeBtn .chev { display: none; }
+    .topbar .btn-cta { padding: 0 4px; gap: 0; height: 40px; }
+    .topbar .btn-cta .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .topbar #moreBtn { width: 36px; height: 36px; }
+  }
+
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
+<div class="ambient" aria-hidden="true"></div>
 <div class="topbar" id="topbar">
   <div class="column">
     <div class="brand">
@@ -417,8 +559,8 @@
         </button>
         <div class="menu" id="rangeMenu" role="menu" aria-label="Date range" hidden></div>
       </div>
-      <button class="btn btn-primary" id="newOaBtn" type="button" hidden>New OA</button>
-      <button class="btn btn-primary" id="addBtn" type="button">Load export</button>
+      <button class="btn btn-primary btn-cta" id="newOaBtn" type="button" hidden><span class="lbl">New OA</span><span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button>
+      <button class="btn btn-primary btn-cta" id="addBtn" type="button"><span class="lbl">Load export</span><span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 12.5v-9M4 7.5l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <div class="menu-wrap">
         <button class="btn btn-secondary btn-icon" id="moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu" aria-label="More">
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></svg>
@@ -453,7 +595,7 @@
     <div class="drop" id="dropzone" tabindex="0" role="button" aria-label="Choose CSV files">
       <h2>Drop your tracker exports here</h2>
       <p>Simplify and ApplyTwin CSVs are recognized automatically, and every export you load is kept, so your history builds up over time. Nothing leaves your device.</p>
-      <button class="btn btn-primary" type="button">Choose files</button>
+      <button class="btn btn-primary btn-cta" type="button"><span class="lbl">Choose files</span><span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 12.5v-9M4 7.5l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <div class="error" id="error" hidden></div>
     </div>
   </section>
@@ -462,26 +604,27 @@
     <div class="notice" id="rangeNote" hidden></div>
 
     <div class="grid">
-      <section class="panel span-12" id="whatsNew" hidden>
+      <section class="panel span-12" id="whatsNew" hidden><div class="core">
         <div class="panel-head"><h2 id="newTitle">What's new</h2><button class="btn btn-text" id="newDismiss" type="button">Dismiss</button></div>
         <p class="note" id="newSub" style="margin:-10px 0 12px"></p>
         <div id="newBody"></div>
-      </section>
+      </div></section>
 
-      <section class="panel span-12">
+      <section class="panel span-8"><div class="core">
         <div class="panel-head">
           <h2>Funnel</h2>
-          <div class="head-actions">
-            <button class="chip-btn" id="openReplies" type="button"></button>
-            <button class="chip-btn" id="openWaiting" type="button"></button>
-          </div>
         </div>
         <div class="figures" id="figures"></div>
         <div id="sankey"></div>
         <p class="note" id="sankeyNote"></p>
-      </section>
+      </div></section>
 
-      <section class="panel span-12">
+      <div class="span-4 tiles">
+        <section class="panel tile"><div class="core"><button class="tile-btn" id="openReplies" type="button" aria-controls="drawer"></button></div></section>
+        <section class="panel tile"><div class="core"><button class="tile-btn" id="openWaiting" type="button" aria-controls="drawer"></button></div></section>
+      </div>
+
+      <section class="panel span-12"><div class="core">
         <div class="panel-head"><h2>Applying</h2>
           <div class="cal-legend" aria-hidden="true">Fewer <i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i> More</div>
         </div>
@@ -491,29 +634,29 @@
         </div>
         <div class="goal" id="goal"></div>
         <p class="note" id="calNote"></p>
-      </section>
+      </div></section>
     </div>
   </section>
   </div>
   <div id="oaView" hidden>
-    <section class="panel" id="oaEmpty" hidden>
+    <section class="panel" id="oaEmpty" hidden><div class="core">
       <div class="panel-head"><h2>Online assessments</h2></div>
       <p class="pane-meta" style="max-width:560px">Log each OA you take: the questions, their topics and how each went, plus what went well, what went wrong and what to do next time. Topics you struggle with show up here as weak spots.</p>
-      <div><button class="btn btn-primary" type="button" data-new-oa>Log your first OA</button></div>
-    </section>
+      <div><button class="btn btn-primary btn-cta" type="button" data-new-oa><span class="lbl">Log your first OA</span><span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></div>
+    </div></section>
     <div class="grid" id="oaGrid" hidden>
-      <section class="panel span-5">
+      <section class="panel span-5"><div class="core">
         <div class="panel-head"><h2>Weak spots</h2>
           <div class="legend" aria-hidden="true"><span><i class="k-solved"></i>Solved</span><span><i class="k-partial"></i>Partial</span><span><i class="k-missed"></i>Not solved</span></div>
         </div>
         <div class="weak" id="weak"></div>
         <h3 class="sub-head">Next time</h3>
         <ul class="digest" id="digest"></ul>
-      </section>
-      <section class="panel span-7">
+      </div></section>
+      <section class="panel span-7"><div class="core">
         <div class="panel-head"><h2>OAs</h2><span class="meta" id="oaMeta"></span></div>
         <ul class="list" id="oaList"></ul>
-      </section>
+      </div></section>
     </div>
   </div>
 </main>
@@ -1052,7 +1195,7 @@ function render() {
   $('csvBtn').disabled = $('shareBtn').disabled = !hasData;
   $('backupBtn').disabled = $('clearBtn').disabled = !hasData && !oas.length;
   const narrow = matchMedia('(max-width: 640px)').matches;
-  $('addBtn').textContent = narrow ? 'Load' : hasData ? 'Load new export' : 'Load export';
+  $('addBtn').querySelector('.lbl').textContent = narrow ? 'Load' : hasData ? 'Load new export' : 'Load export';
   const sc = $('scope'); sc.replaceChildren();
   const span = document.createElement('span');
   const kinds = [...new Set(files.map(f => LABEL[f.format]))];
@@ -1062,7 +1205,7 @@ function render() {
   $('historyMeta').textContent = hasData
     ? `${plural(files.length, 'export')} saved on this device (${kinds.join(' and ')}), ${plural(overrides.length, 'edit')}.`
     : 'Nothing saved yet.';
-  if (!hasData) { closeDrawer(true); if (firstPaint && view === 'apps') { firstPaint = false; animateIn([$('dropzone')]); } return; }
+  if (!hasData) { closeDrawer(true); return; }
 
   const range = RANGES.find(r => r.id === rangeId);
   $('rangeLabel').textContent = range.label;
@@ -1077,18 +1220,7 @@ function render() {
   const c = (o) => apps.filter(a => a.outcome === o).length;
   console.assert(['waiting', 'ghosted', 'rejected', 'withdrawn', 'progress', 'offer'].reduce((s, o) => s + c(o), 0) === apps.length, 'outcomes do not sum to the total');
   const heard = c('progress') + c('offer') + c('rejected');
-  [['openReplies', 'replies', heard, heard === 1 ? 'reply' : 'replies', 'var(--chart-3)'],
-   ['openWaiting', 'waiting', c('waiting') + c('ghosted'), 'waiting', 'var(--c-waiting)']].forEach(([id, tab, n, word, color]) => {
-    const b = $(id); b.replaceChildren();
-    const d = document.createElement('span'); d.className = 'dot'; d.style.background = color;
-    // Number and word sit in one text run so the chip's flex gap only separates the dot.
-    const label = document.createElement('span');
-    const strong = document.createElement('b'); strong.textContent = n;
-    label.append(strong, document.createTextNode(' ' + word));
-    b.append(d, label);
-    b.setAttribute('aria-expanded', String(drawerOpen && drawerTab === tab));
-    b.setAttribute('aria-controls', 'drawer');
-  });
+  renderTiles(apps);
 
   renderWhatsNew();
   renderFigures(apps);
@@ -1098,7 +1230,6 @@ function render() {
   renderHeard(apps);
   renderClock(apps);
   if (drawerOpen && drawerTab === 'edit') renderEditor();
-  if (firstPaint && view === 'apps') { firstPaint = false; animateIn([...$('dash').querySelectorAll('#rangeNote:not([hidden]), .grid > .panel:not([hidden])')]); }
 }
 
 /* ---------- Date-range menu ---------- */
@@ -1182,6 +1313,69 @@ function slideDrawer(el, show) {
   const anim = el.animate(frames, { duration: show ? 300 : 150, easing: show ? EASE : 'ease-out' });
   el._anim = anim;
   anim.onfinish = () => { el._anim = null; if (!show) el.hidden = true; };
+}
+
+// Bento tiles beside the funnel: the latest replies, and what's still waiting. Each opens its drawer tab.
+const ARROW_IC = '<span class="cta-ic" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M5 11l6-6M6 5h5v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+function tileShell(btn, eyebrow) {
+  btn.replaceChildren();
+  const e = document.createElement('span'); e.className = 'eyebrow'; e.textContent = eyebrow;
+  btn.appendChild(e);
+  return btn;
+}
+function renderTiles(apps) {
+  // Latest replies
+  const rb = tileShell($('openReplies'), 'Latest replies');
+  const rows = apps.filter(a => ['progress', 'offer', 'rejected'].includes(a.outcome))
+    .sort((a, b) => (b.statusDate || b.date || 0) - (a.statusDate || a.date || 0));
+  const list = document.createElement('span'); list.className = 'tile-list';
+  if (!rows.length) { const e = document.createElement('span'); e.className = 'tile-sub'; e.textContent = 'No replies in this range yet.'; list.appendChild(e); }
+  rows.slice(0, 5).forEach(a => {
+    const r = document.createElement('span'); r.className = 'tile-row';
+    const n = document.createElement('span'); n.className = 'tile-co'; n.textContent = a.company;
+    const [label, cls] = a.outcome === 'offer' ? ['Offer', 'pill-positive'] : a.outcome === 'progress' ? ['Screen', 'pill-info'] : ['Rejected', 'pill-neutral'];
+    const pl = document.createElement('span'); pl.className = 'pill ' + cls; pl.textContent = label;
+    r.append(n, pl); list.appendChild(r);
+  });
+  const rf = document.createElement('span'); rf.className = 'tile-foot';
+  rf.innerHTML = `<span>View all ${rows.length}</span>${ARROW_IC}`;
+  rb.append(list, rf);
+  rb.setAttribute('aria-label', `${plural(rows.length, 'reply')}. Open the replies list`);
+  rb.setAttribute('aria-expanded', String(drawerOpen && drawerTab === 'replies'));
+
+  // Waiting: the count, and how long they've waited (the clock's bins as a tiny bar chart)
+  const wb = tileShell($('openWaiting'), 'Waiting');
+  const open = apps.filter(a => a.outcome === 'waiting' || a.outcome === 'ghosted');
+  const big = document.createElement('span'); big.className = 'tile-big'; big.textContent = open.length;
+  const sub = document.createElement('span'); sub.className = 'tile-sub';
+  const ghosted = apps.filter(a => a.outcome === 'ghosted').length;
+  sub.textContent = ghosted ? `no reply yet · ${ghosted} past 30 days` : 'no reply yet';
+  const age = (a) => Math.max(0, Math.floor((today - a.date) / DAY));
+  const edges = [[0, 6], [7, 13], [14, 20], [21, 29], [30, Infinity]];
+  const counts = edges.map(([lo, hi]) => open.filter(a => a.date && age(a) >= lo && age(a) <= hi).length);
+  const mx = Math.max(1, ...counts);
+  const bars = document.createElement('span'); bars.className = 'tile-bars';
+  counts.forEach((v, i) => { const bar = document.createElement('i'); bar.style.transform = `scaleY(${Math.max(0.04, v / mx)})`; if (i >= 3) bar.className = 'late'; bars.appendChild(bar); });
+  const axis = document.createElement('span'); axis.className = 'tile-axis'; axis.innerHTML = '<span>new</span><span>30+ days</span>';
+  const wf = document.createElement('span'); wf.className = 'tile-foot';
+  wf.innerHTML = `<span>Waiting clock</span>${ARROW_IC}`;
+  wb.append(big, sub, bars, axis, wf);
+  wb.setAttribute('aria-label', `${open.length} waiting for a reply. Open the waiting clock`);
+  wb.setAttribute('aria-expanded', String(drawerOpen && drawerTab === 'waiting'));
+}
+
+// Panels fade up as they scroll into view (once). Reduced motion: they're simply there.
+const revealIO = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+  entries.filter(e => e.isIntersecting).forEach((e, i) => {
+    e.target.style.transitionDelay = (i * 90) + 'ms';
+    e.target.classList.add('in');
+    revealIO.unobserve(e.target);
+    setTimeout(() => { e.target.style.transitionDelay = ''; }, 1200 + i * 90);
+  });
+}, { threshold: 0.12 }) : null;
+function setupReveal() {
+  if (!MOTION || !revealIO) return;
+  document.querySelectorAll('.panel:not(#whatsNew), .drop').forEach(el => { el.classList.add('reveal'); revealIO.observe(el); });
 }
 
 function renderWhatsNew() {
@@ -1477,7 +1671,7 @@ function renderSankey(apps) {
 
   const W = host.clientWidth || 800;
   const narrow = W < 560;
-  const H = Math.max(228, Math.min(400, 96 + nodes.length * 32));
+  const H = narrow ? Math.max(228, Math.min(400, 96 + nodes.length * 32)) : 320;
   const labelW = narrow ? 112 : 200;
   const m = { top: 8, right: labelW, bottom: 8, left: narrow ? 64 : 96 };
 
@@ -1784,7 +1978,6 @@ function setView(v) {
   else { closeOA(true); render(); }
   document.title = v === 'oas' ? 'OAs · JustApply' : 'JustApply';
   if (viewReady) animateIn([$(v === 'oas' ? 'oaView' : 'appsView')], { rise: 8, duration: 220 });
-  else if (v === 'oas') { firstPaint = false; animateIn([...$('oaView').querySelectorAll('#oaEmpty:not([hidden]), #oaGrid:not([hidden]) > .panel')]); }
   viewReady = true;
 }
 
@@ -2241,6 +2434,7 @@ $('copyImgBtn').addEventListener('click', () => {
 navigator.storage?.persist?.().catch(() => {});
 // Offline + installable when served over http(s); a file:// page skips this.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+setupReveal();
 const saved = store.get(STORE_KEY);
 if (Array.isArray(saved) && saved.length) loadTexts(saved, false); else render();
 setView(location.hash === '#oas' ? 'oas' : 'apps');

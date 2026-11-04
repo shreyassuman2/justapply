@@ -21,7 +21,7 @@ const URL_ = `http://localhost:${PORT}/`;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.ico': 'image/x-icon',
+  '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2',
 };
 // Only these files are ever served.
 const ALLOWED = /^\/(index\.html|manifest\.webmanifest|sw\.js|icons\/[\w.-]+|vendor\/[\w.-]+)$/;
