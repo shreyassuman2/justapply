@@ -1,12 +1,49 @@
 # JustApply
 
-A single-page dashboard for job applications. Drop in tracker CSVs and it shows your funnel.
+See which job applications actually got a reply.
 
-- Open `index.html` in a browser, then drop a Simplify and/or ApplyTwin export onto it.
-- **Only real applications count.** Saved, skipped and unfinished rows are left out.
-- **Duplicates are combined** across both files and within each one, using the posting ID in the job link.
-- **What's new:** each new upload lists new applications and status changes since the previous upload.
+JustApply turns your tracker exports into one clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied. It also has a notebook for online assessments, so you can see which topics keep tripping you up.
+
+Everything runs on your own computer. Nothing is uploaded anywhere.
+
+## Run it
+
+You need [Node.js](https://nodejs.org) 18 or newer.
+
+```bash
+npx justapply
+```
+
+That starts JustApply at `http://localhost:4545` and opens it in your browser. Press `Ctrl+C` in the terminal to stop it.
+
+Then drop in your exports:
+
+- **Simplify:** Tracker → Export to CSV
+- **ApplyTwin:** export your applications as CSV
+
+You can load both; duplicates are merged. Load a newer export any time and JustApply shows what's new.
+
+Options: `npx justapply --port 4546` uses a different port, and `--no-open` skips opening the browser.
+
+## What it does
+
+- **Counts only real applications.** Saved, skipped and unfinished rows are left out.
+- **Merges duplicates** across both files using each posting's ID, so the same job is never counted twice.
+- **Funnel:** heard back, screens, offers, rejections, and what's still waiting or ghosted (no reply after 30 days).
+- **Heard back list, waiting clock, and an applying calendar.** Click a day to see what you applied to.
 - **Edit statuses** for updates your tracker doesn't have yet.
-- Everything runs in your browser. Data is kept only in `localStorage`.
+- **OA notebook:** log each assessment's questions by topic and how they went, plus what went well, what went wrong and what to do next time. Weak topics rise to the top.
+- **Download your applications as a clean CSV.**
 
-The full spec is in `.plans/job-application-visualizer-spec.md`.
+## Your data
+
+Your data is saved in your browser, tied to `localhost:4545`, so keep using the same port. To keep it safe for the long term:
+
+- **Auto-save to a file** (Chrome, Edge, Arc, Brave): ⋯ menu → Auto-save to a file. Put it in iCloud Drive or Dropbox and it's backed up and synced.
+- **Backups:** ⋯ menu → Download backup, and Restore from backup on any machine.
+
+In Chrome you can also click the install icon in the address bar to give JustApply its own window and Dock icon. It works offline.
+
+## License
+
+MIT. Bundled libraries are listed in `vendor/LICENSES.md`.

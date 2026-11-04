@@ -1,0 +1,11 @@
+{
+  "name": "justapply",
+  "version": "0.1.0",
+  "description": "See which job applications actually got a reply. Merges Simplify and ApplyTwin exports into one dashboard, with an OA notebook. Runs on your own computer.",
+  "bin": { "justapply": "bin/justapply.js" },
+  "files": ["bin/", "index.html", "manifest.webmanifest", "sw.js", "icons/", "vendor/"],
+  "engines": { "node": ">=18" },
+  "keywords": ["job-search", "internship", "applications", "simplify", "tracker", "dashboard", "offline"],
+  "repository": { "type": "git", "url": "git+https://github.com/shreyassuman2/justapply.git" },
+  "license": "MIT"
+}
