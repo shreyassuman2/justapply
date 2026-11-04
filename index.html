@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application Funnel</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --border: rgba(255,255,255,0.10);
+    --text-1: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #898781;
+    --grid: #2c2c2a;
+    --c-applied: #3987e5;
+    --c-progress: #199e70;
+    --c-rejected: #d95926;
+    --c-waiting: #8f8e88;
+    --c-ghosted: #4a4946;
+    --heat-0: #232322;
+    --heat-1: #184f95;
+    --heat-2: #256abf;
+    --heat-3: #3987e5;
+    --heat-4: #86b6ef;
+    --radius: 12px;
+    /* Elevation: hairline ring + soft drop. Elements using it keep a transparent border for forced-colors. */
+    --ring: 0 0 0 1px rgba(255,255,255,0.08);
+    --lift: 0 0 0 1px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--text-1); }
+  body { min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+  @media (max-width: 640px) { .wrap { padding: 20px 16px 48px; } }
+
+  /* Header */
+  header { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid transparent; box-shadow: var(--ring); border-radius: 999px; padding: 4px 10px; }
+  .chip b { color: var(--text-1); font-weight: 600; }
+  .merge-note { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* outer radius 9 = inner 6 + padding 2 + border 1 */
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 2px; }
+  .seg button { background: none; border: 1px solid transparent; padding: 5px 9px; font-size: 13px; color: var(--text-3); border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { color: var(--text-1); background: var(--surface-2); border-color: var(--border); }
+  .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+  .seg button, .btn, .more {
+    -webkit-tap-highlight-color: transparent;
+    transition-property: color, background-color, border-color, scale;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .seg button:not(:disabled):active, .btn:not(:disabled):active { scale: 0.96; }
+  }
+  @media (hover: hover) {
+    .seg button:hover { color: var(--text-1); background-color: rgba(255,255,255,0.04); }
+    .btn:hover { color: var(--text-1); border-color: rgba(255,255,255,0.18); }
+    .btn.ghost:hover { color: var(--text-1); }
+    .cal-cell:hover { stroke: var(--text-1); stroke-width: 1.5; }
+    .drop:hover { border-color: var(--c-applied); background-color: #1d1f22; }
+    .more:hover { color: var(--heat-4); }
+  }
+  .btn.ghost { background: none; border-color: transparent; color: var(--text-3); }
+  .range-note { font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin: -12px 0 16px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid transparent; box-shadow: var(--lift); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 16px; }
+  @media (max-width: 640px) { .card { padding: 18px 16px; } }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .card-title { font-size: 14px; font-weight: 600; margin: 0; }
+  .card-sub { font-size: 12px; color: var(--text-3); margin: 0; }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--surface); border: 1px solid transparent; box-shadow: var(--lift); border-radius: var(--radius); padding: 18px 20px; }
+  .kpi-label { font-size: 13px; color: var(--text-2); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .kpi-label i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .kpi-value { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
+  .kpi-foot { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+
+  /* Sankey */
+  #sankey { width: 100%; }
+  #sankey svg { display: block; overflow: visible; }
+  .s-link { fill: none; transition: stroke-opacity .15s; }
+  .s-node rect { rx: 3; }
+  .s-label { font-size: 13px; fill: var(--text-2); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .s-label tspan.n { fill: var(--text-1); font-weight: 600; }
+  .s-label tspan.p { fill: var(--text-3); }
+  .note { font-size: 12px; color: var(--text-3); margin-top: 14px; line-height: 1.5; }
+
+  /* Calendar */
+  .cal-scroll { overflow-x: auto; padding-bottom: 4px; }
+  #calendar svg { display: block; }
+  .cal-cell { rx: 2.5; }
+  .cal-cell:focus-visible { stroke: var(--text-1); stroke-width: 1.5; outline: none; }
+  .cal-axis { font-size: 11px; fill: var(--text-3); }
+  .cal-legend { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); }
+  .cal-legend i { width: 11px; height: 11px; border-radius: 2.5px; display: inline-block; }
+  .stats { display: flex; flex-wrap: wrap; gap: 12px 40px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .stat-v { font-size: 20px; font-weight: 600; }
+  .stat-l { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+  /* Tooltip */
+  #tip { position: fixed; pointer-events: none; z-index: 10; background: #262625; border: 1px solid transparent; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-2); box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 2px 4px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4); opacity: 0; transition: opacity 100ms ease-out; max-width: 260px; }
+  #tip .v { color: var(--text-1); font-weight: 600; font-size: 14px; }
+  #tip .k { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
+
+  /* Empty / drop */
+  .drop { border: 1.5px dashed rgba(255,255,255,0.16); border-radius: 16px; padding: 72px 24px; text-align: center; background: var(--surface); cursor: pointer; transition-property: border-color, background-color; transition-duration: 150ms; transition-timing-function: ease-out; }
+  .drop.over { border-color: var(--c-applied); background-color: #1d1f22; }
+  .drop h2 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+  .drop p { color: var(--text-3); margin: 0; font-size: 14px; line-height: 1.6; }
+  .drop .btn { margin-top: 20px; }
+  .error { color: #ec835a; font-size: 13px; margin-top: 14px; }
+  #overlay { position: fixed; inset: 0; background: rgba(13,13,13,.85); border: 2px dashed var(--c-applied); display: none; align-items: center; justify-content: center; font-size: 18px; z-index: 20; }
+  #overlay.on { display: flex; }
+
+  /* What's new */
+  .new-card { box-shadow: 0 0 0 1px rgba(57,135,229,0.35), 0 1px 2px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25); }
+
+  /* One-time entrance: dashboard reveal and a fresh What's new card. Runs once, so keyframes are fine. */
+  @keyframes enter { from { opacity: 0; filter: blur(4px); translate: 0 12px; } }
+  @keyframes enter-fade { from { opacity: 0; } }
+  .enter { animation: enter-fade 300ms ease-out both; animation-delay: calc(var(--i, 0) * 100ms); }
+  @media (prefers-reduced-motion: no-preference) { .enter { animation-name: enter; } }
+  .new-card .card-head { margin-bottom: 10px; }
+  .new-sec { margin-top: 14px; }
+  .new-sec h3 { font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 8px; }
+  .new-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .new-list li { font-size: 13px; color: var(--text-2); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .new-list li b { color: var(--text-1); font-weight: 600; }
+  .new-list .arrow { color: var(--text-3); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; transform: translateY(-1px); }
+  .more { background: none; border: 0; padding: 0; color: var(--c-applied); font-size: 13px; cursor: pointer; margin-top: 8px; }
+
+  /* Status editor */
+  .editor input[type=search] { width: 100%; background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text-1); font: inherit; font-size: 14px; outline: none; }
+  .editor input[type=search]:focus { border-color: var(--c-applied); }
+  .ed-list { list-style: none; margin: 12px 0 0; padding: 0; }
+  .ed-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .ed-row:first-child { border-top: 0; }
+  .ed-main { flex: 1; min-width: 0; }
+  .ed-co { font-size: 14px; color: var(--text-1); }
+  .ed-meta { font-size: 12px; color: var(--text-3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-row select { background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 13px; }
+  .tag { font-size: 11px; color: var(--c-applied); border: 1px solid rgba(57,135,229,.4); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="empty">
+    <h1 style="margin-bottom:20px">Application Funnel</h1>
+    <div class="drop" id="dropzone" tabindex="0" role="button" aria-label="Choose CSV files">
+      <h2>Drop your tracker CSVs</h2>
+      <p>Simplify and ApplyTwin exports are recognized automatically. Drop one or both, and they'll be merged.<br>Only real applications are counted. Saved, skipped and unfinished rows are left out. Nothing leaves your browser.</p>
+      <button class="btn" type="button">Choose files</button>
+      <div class="error" id="error" hidden></div>
+    </div>
+  </section>
+
+  <section id="dash" hidden>
+    <header>
+      <div>
+        <h1>Application Funnel</h1>
+        <div class="files" id="files"></div>
+        <div class="merge-note" id="mergeNote"></div>
+      </div>
+      <div class="controls">
+        <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
+        <button class="btn" id="editBtn" type="button" aria-expanded="false">Edit statuses</button>
+        <button class="btn" id="addBtn" type="button">Load CSV</button>
+        <button class="btn ghost" id="clearBtn" type="button">Clear</button>
+      </div>
+    </header>
+    <div class="range-note" id="rangeNote" hidden></div>
+
+    <div class="card new-card" id="whatsNew" hidden>
+      <div class="card-head">
+        <h2 class="card-title" id="newTitle">What's new</h2>
+        <button class="btn ghost" id="newDismiss" type="button">Dismiss</button>
+      </div>
+      <p class="card-sub" id="newSub"></p>
+      <div id="newBody"></div>
+    </div>
+
+    <div class="card editor" id="editor" hidden>
+      <div class="card-head">
+        <h2 class="card-title">Edit statuses</h2>
+        <p class="card-sub">For updates your tracker doesn't have yet. An edit is dropped automatically once your CSV shows a newer status for that job.</p>
+      </div>
+      <input type="search" id="edSearch" placeholder="Search company or role" autocomplete="off">
+      <ul class="ed-list" id="edList"></ul>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Pipeline</h2>
+        <p class="card-sub" id="sankeySub"></p>
+      </div>
+      <div id="sankey"></div>
+      <div class="note" id="sankeyNote"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Activity</h2>
+        <div class="cal-legend" aria-hidden="true">Less
+          <i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i>More</div>
+      </div>
+      <div class="cal-scroll"><div id="calendar"></div></div>
+      <div class="stats" id="calStats"></div>
+      <div class="note" id="calNote"></div>
+    </div>
+  </section>
+</div>
+<input type="file" id="fileInput" accept=".csv,text/csv" multiple hidden>
+<div id="tip" role="tooltip"></div>
+<div id="overlay">Drop CSV to load</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<script>
+(() => {
+'use strict';
+
+const GHOST_DAYS = 30;
+const STORE_KEY = 'appfunnel.files.v1';
+const RANGE_KEY = 'appfunnel.range.v1';
+const OVERRIDE_KEY = 'appfunnel.overrides.v1';
+const SNAP_KEY = 'appfunnel.snapshot.v1';
+const DIFF_KEY = 'appfunnel.lastdiff.v1';
+const DAY = 86400000;
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Storage (never required) ---------- */
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+
+/* ---------- Dates ---------- */
+const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function parseDate(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  if (!s || /^(n\/?a|none|null|-)$/i.test(s)) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) { const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return new Date(y, +m[1]-1, +m[2]); }
+  const t = Date.parse(s);
+  if (isNaN(t)) return null;
+  const d = new Date(t); d.setHours(0,0,0,0); return d;
+}
+const fmtDate = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+/* ---------- Status vocabulary ---------- */
+// Buckets: applied | progress | offer | rejected | withdrawn | excluded
+const STATUS = new Map();
+const add = (bucket, words) => words.forEach(w => STATUS.set(w, bucket));
+add('applied', ['applied','submitted','application submitted','application sent','sent','under review','in review','moved to applied']);
+add('progress', ['screening','screen','phone screen','recruiter screen','oa','online assessment','assessment','coding challenge','take home','interview','interviewing','interviewed','technical interview','onsite','on site','final round','final interview','superday']);
+add('offer', ['offer','offered','offer received','accepted','offer accepted','declined offer','offer declined']);
+add('rejected', ['rejected','rejection','not selected','no longer under consideration','not moving forward','declined by company']);
+add('withdrawn', ['withdrawn','withdrew','withdraw']);
+add('excluded', ['saved','save','bookmarked','wishlist','interested','skipped','skip','needs user','not applied','not interested','draft','to apply','planned','archived']);
+// A rejection outranks a screen for the same job (it's usually the later event); an offer outranks both.
+const RANK = { excluded: 0, applied: 1, withdrawn: 2, progress: 3, rejected: 3.5, offer: 4 };
+const unknownStatuses = new Set();
+function bucketOf(raw) {
+  const k = String(raw || '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!k) return 'excluded';
+  if (STATUS.has(k)) return STATUS.get(k);
+  unknownStatuses.add(raw);
+  return 'excluded'; // strict: unknown never counts
+}
+
+/* ---------- Format detection & row normalization ---------- */
+function findCol(headers, patterns) {
+  const norm = headers.map(h => h.toLowerCase().replace(/[^a-z]/g, ''));
+  for (const p of patterns) { const i = norm.findIndex(h => p.test(h)); if (i >= 0) return headers[i]; }
+  return null;
+}
+function detect(headers) {
+  const H = new Set(headers.map(h => h.trim()));
+  if (H.has('Company Name') && H.has('Applied Date') && H.has('Status')) return 'simplify';
+  if (H.has('Company') && H.has('Role') && H.has('Site') && H.has('Status')) return 'applytwin';
+  return 'generic';
+}
+const LABEL = { simplify: 'Simplify', applytwin: 'ApplyTwin', generic: 'CSV' };
+
+function normalizeFile(name, text) {
+  const parsed = Papa.parse(text.replace(/^﻿/, ''), { header: true, skipEmptyLines: true, transformHeader: h => h.trim() });
+  const headers = parsed.meta.fields || [];
+  const format = detect(headers);
+  let col;
+  if (format === 'simplify') col = { company: 'Company Name', role: 'Job Title', status: 'Status', date: 'Applied Date', url: 'Job URL', location: 'Location' };
+  else if (format === 'applytwin') col = { company: 'Company', role: 'Role', status: 'Status', date: 'Date', url: 'Link', location: 'Location', notes: 'Notes' };
+  else col = {
+    company: findCol(headers, [/^company/, /employer/, /organi[sz]ation/]),
+    role: findCol(headers, [/^(job)?title/, /role/, /position/]),
+    status: findCol(headers, [/^status/, /stage/, /state/]),
+    date: findCol(headers, [/applied/, /submitted/, /applicationdate/, /^date/]),
+    url: findCol(headers, [/url/, /link/]),
+    location: findCol(headers, [/location/]),
+  };
+  if (!col.status) throw new Error(`"${name}" has no Status column, so applications can't be told apart from saved jobs.`);
+  const rows = parsed.data.map(r => {
+    const notes = col.notes ? (r[col.notes] || '') : '';
+    let date = parseDate(r[col.date]);
+    let dateReal = !!date;
+    // ApplyTwin imports carry the import timestamp, not the real apply date.
+    if (format === 'applytwin' && /^from your history/i.test(notes.trim())) { date = null; dateReal = false; }
+    return {
+      company: (r[col.company] || '').trim(),
+      role: (r[col.role] || '').trim(),
+      url: (r[col.url] || '').trim(),
+      location: (r[col.location] || '').trim(),
+      rawStatus: (r[col.status] || '').trim(),
+      bucket: bucketOf(r[col.status]),
+      date: dateReal ? date : null,
+      source: format,
+    };
+  });
+  return { name, format, rows, total: rows.length, counted: rows.filter(r => r.bucket !== 'excluded').length };
+}
+
+/* ---------- Job identity ---------- */
+// A posting's real ID, taken from its link when the link carries one. Two rows with the
+// same ID are the same job; two rows with different IDs are different postings.
+const SHORTLINK = /(^|\.)(simplify\.jobs|go\.vansh\.nyc|bit\.ly|lnkd\.in|tinyurl\.com|t\.co)$/;
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+function parseUrl(u) { try { return /^https?:/i.test(u) ? new URL(u.trim()) : null; } catch { return null; } }
+function strongKey(u, ck) {
+  const x = parseUrl(u); if (!x) return '';
+  const host = x.hostname.replace(/^www\./, '').toLowerCase();
+  if (SHORTLINK.test(host)) return '';
+  let path; try { path = decodeURIComponent(x.pathname); } catch { path = x.pathname; }
+  const segs = path.split('/').filter(Boolean);
+  const idKey = (v) => v.length >= 9 ? 'n:' + v : 'n:' + (ck || host) + ':' + v;
+  const uuid = path.match(UUID_RE);
+  if (uuid) return 'u:' + uuid[0].toLowerCase();
+  if (/myworkdayjobs\.com$/.test(host)) {
+    // ..._R0031229, ..._JR-202623439, ..._2642721-1 (the -1/-2 suffix is the same req on another board)
+    const m = (segs[segs.length - 1] || '').match(/_([A-Za-z]{0,5}-?\d{3,})(?:-\d{1,2})?$/);
+    if (m) return 'wd:' + host.split('.')[0] + ':' + m[1].toUpperCase().replace('-', '');
+  }
+  for (const p of ['gh_jid', 'token', 'jobId', 'jobid', 'job_id', 'jid', 'rid', 'reqId', 'requisitionId', 'id']) {
+    const v = x.searchParams.get(p);
+    if (v && /^\d{4,}$/.test(v)) return idKey(v);
+  }
+  for (let i = segs.length - 1; i >= 0; i--) if (/^\d{5,}$/.test(segs[i])) return idKey(segs[i]);
+  const tail = (segs[segs.length - 1] || '').match(/[_-](\d{5,})$/);
+  if (tail) return idKey(tail[1]);
+  return '';
+}
+// Exact-link key, used only for links that point at a specific page (not a bare homepage).
+function exactUrlKey(u) {
+  const x = parseUrl(u); if (!x) return '';
+  const path = x.pathname.toLowerCase().replace(/\/(apply|application)\/?$/, '').replace(/\/+$/, '');
+  if (!path) return '';
+  [...x.searchParams.keys()].forEach(k => { if (/^utm_|^ref$|^source$|^gh_src$|^embed$/i.test(k)) x.searchParams.delete(k); });
+  x.searchParams.sort();
+  return 'x:' + x.hostname.replace(/^www\./, '').toLowerCase() + path + x.search.toLowerCase();
+}
+function companyKey(c) {
+  c = (c || '').toLowerCase();
+  if (c.includes('|')) c = c.split('|').pop();
+  c = c.replace(/\b(the|inc|llc|ltd|corp|corporation|company|co|plc|careers at|group)\b\.?/g, '').replace(/[^a-z0-9]/g, '');
+  return /^unknown/.test(c) ? '' : c;
+}
+const ROLE_STOP = new Set(['or', 'and', 'the', 'of', 'a', 'an', 'in', 'for', 'to', 'with', 'us', 'usa', 'remote', 'hybrid', 'summer', 'fall', 'spring', 'winter', 'autumn', 'new', 'grad']);
+function roleKey(r) {
+  const toks = (r || '').toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\binternship\b/g, 'intern').replace(/\bengineering\b/g, 'engineer').replace(/\bco-?op\b/g, 'intern')
+    .replace(/[^a-z0-9+#]+/g, ' ').split(' ')
+    .filter(t => t && !ROLE_STOP.has(t) && !/^20\d\d$/.test(t));
+  return [...new Set(toks)].sort().join(' ');
+}
+function locTokens(l) {
+  l = (l || '').toLowerCase().replace(/\bsf\b/g, 'san francisco').replace(/\bnyc\b/g, 'new york').replace(/\bla\b/g, 'los angeles');
+  return new Set(l.split(/[;|,/]+|\bor\b/).map(s => s.replace(/[^a-z ]/g, '').trim()).filter(s => s.length > 2 && s !== 'united states' && s !== 'usa'));
+}
+
+/* ---------- Merge & dedupe ---------- */
+// Every row from every file is grouped by job; one group = one application.
+function merge(files) {
+  const rows = [];
+  files.forEach(f => f.rows.forEach(r => {
+    const ck = companyKey(r.company);
+    rows.push({ ...r, ck, rk: roleKey(r.role), sk: strongKey(r.url, ck), xk: exactUrlKey(r.url), loc: locTokens(r.location) });
+  }));
+  const parent = rows.map((_, i) => i);
+  const strong = rows.map(r => new Set(r.sk ? [r.sk] : []));
+  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const conflict = (a, b) => strong[a].size && strong[b].size && ![...strong[a]].some(k => strong[b].has(k));
+  const union = (a, b) => {
+    a = find(a); b = find(b);
+    if (a === b || conflict(a, b)) return false;
+    parent[b] = a; strong[b].forEach(k => strong[a].add(k)); return true;
+  };
+  // 1) same posting ID, 2) same exact link
+  for (const field of ['sk', 'xk']) {
+    const seen = new Map();
+    rows.forEach((r, i) => { const k = r[field]; if (!k) return; if (seen.has(k)) union(seen.get(k), i); else seen.set(k, i); });
+  }
+  // 3) rows with no posting ID (shortlinks, homepages) join a group with the same company + role,
+  //    picking the one whose location overlaps most.
+  const byCR = new Map();
+  rows.forEach((r, i) => { if (!r.ck || !r.rk) return; const k = r.ck + '|' + r.rk; if (!byCR.has(k)) byCR.set(k, []); byCR.get(k).push(i); });
+  rows.forEach((r, i) => {
+    if (r.sk || !r.ck || !r.rk) return;
+    const me = find(i);
+    let best = null, bestScore = -1;
+    for (const j of byCR.get(r.ck + '|' + r.rk)) {
+      const g = find(j);
+      if (g === me || conflict(g, me)) continue;
+      const overlap = [...r.loc].filter(t => rows[j].loc.has(t)).length;
+      const score = overlap * 10 + (strong[g].size ? 1 : 0);
+      if (score > bestScore) { best = g; bestScore = score; }
+    }
+    if (best !== null) union(best, i);
+  });
+
+  const groups = new Map();
+  rows.forEach((r, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
+  const all = [];
+  let countedRows = 0;
+  for (const g of groups.values()) {
+    const counted = g.filter(r => r.bucket !== 'excluded');
+    countedRows += counted.length;
+    const top = g.reduce((a, b) => RANK[b.bucket] > RANK[a.bucket] ? b : a);
+    const named = g.find(r => r.company && r.company !== r.company.toLowerCase()) || g.find(r => r.company) || g[0];
+    const dates = counted.map(r => r.date).filter(Boolean).sort((a, b) => a - b);
+    const keys = new Set();
+    g.forEach(r => { if (r.sk) keys.add(r.sk); if (r.xk) keys.add(r.xk); if (r.ck && r.rk) keys.add(r.ck + '|' + r.rk); });
+    all.push({
+      company: named.company || '(no company)',
+      role: (g.find(r => r.source === 'simplify') || named).role,
+      location: (g.find(r => r.location) || {}).location || '',
+      csvBucket: top.bucket,
+      bucket: top.bucket,
+      rawStatus: top.rawStatus,
+      date: dates[0] || null,
+      keys: [...keys].sort(),
+      sources: [...new Set(g.map(r => r.source))],
+      rowCount: g.length,
+    });
+  }
+  const apps = all.filter(a => a.csvBucket !== 'excluded');
+  return { all, apps, countedRows, hasSimplify: files.some(f => f.format === 'simplify') };
+}
+const sharesKey = (a, b) => { const s = new Set(a); return b.some(k => s.has(k)); };
+
+/* ---------- Outcomes ---------- */
+function outcomeOf(r) {
+  switch (r.bucket) {
+    case 'offer': return 'offer';
+    case 'progress': return 'progress';
+    case 'rejected': return 'rejected';
+    case 'withdrawn': return 'withdrawn';
+    default:
+      if (r.date && (today - r.date) / DAY >= GHOST_DAYS) return 'ghosted';
+      return 'waiting';
+  }
+}
+
+/* ---------- Date ranges ---------- */
+function seasonStart() {
+  const y = today.getMonth() >= 7 ? today.getFullYear() : today.getFullYear() - 1;
+  return new Date(y, 7, 1);
+}
+const RANGES = [
+  { id: 'all', label: 'All time', start: () => null },
+  { id: 'season', label: 'This season', start: seasonStart },
+  { id: '90', label: 'Last 90 days', start: () => new Date(today - 89 * DAY) },
+  { id: '30', label: 'Last 30 days', start: () => new Date(today - 29 * DAY) },
+];
+
+/* ---------- State ---------- */
+let files = [];          // normalized files
+let merged = null;
+let overrides = store.get(OVERRIDE_KEY) || [];   // [{ keys, bucket, csvBucket, label }]
+let lastDiff = store.get(DIFF_KEY);
+let showAllNew = false;
+const BUCKET_NAME = { applied: 'Applied', progress: 'Screen / interview', offer: 'Offer', rejected: 'Rejected', withdrawn: 'Withdrawn', excluded: 'Not applied' };
+const BUCKET_COLOR = { applied: 'var(--c-applied)', progress: 'var(--c-progress)', offer: 'var(--c-progress)', rejected: 'var(--c-rejected)', withdrawn: 'var(--c-ghosted)', excluded: 'var(--c-ghosted)' };
+
+// Your manual edits sit on top of the CSV. An edit is dropped once the CSV's own status for
+// that job changes, because the CSV then has newer information than the edit.
+function applyOverrides() {
+  let dropped = false;
+  merged.all.forEach(a => { a.bucket = a.csvBucket; a.edited = false; });
+  overrides = overrides.filter(o => {
+    const a = merged.all.find(x => sharesKey(x.keys, o.keys));
+    if (!a) return true; // job may live in a file that isn't loaded right now
+    if (a.csvBucket !== o.csvBucket) { dropped = true; return false; }
+    a.bucket = o.bucket; a.edited = true; return true;
+  });
+  if (dropped) store.set(OVERRIDE_KEY, overrides);
+  merged.apps = merged.all.filter(a => a.bucket !== 'excluded');
+  merged.apps.forEach(a => a.outcome = outcomeOf(a));
+}
+
+// What's new = applications (and status changes) not in the dataset as of the previous upload.
+const snapshotOf = (m) => m.all.filter(a => a.csvBucket !== 'excluded').map(a => ({ keys: a.keys, b: a.csvBucket }));
+function diffAgainst(prev, m, names) {
+  const idx = new Map();
+  prev.forEach(p => p.keys.forEach(k => idx.set(k, p)));
+  const added = [], changed = [];
+  for (const a of m.all) {
+    if (a.csvBucket === 'excluded') continue;
+    const p = a.keys.map(k => idx.get(k)).find(Boolean);
+    const item = { c: a.company, r: a.role, b: a.csvBucket };
+    if (!p) added.push(item);
+    else if (p.b !== a.csvBucket) changed.push({ ...item, from: p.b });
+  }
+  return { at: Date.now(), files: names, added, changed };
+}
+let rangeId = store.get(RANGE_KEY) || 'all';
+if (!RANGES.some(r => r.id === rangeId)) rangeId = 'all';
+
+function loadTexts(list, persist) {
+  const err = $('error');
+  err.hidden = true;
+  try {
+    for (const { name, text } of list) {
+      const nf = normalizeFile(name, text);
+      nf.text = text;
+      files = files.filter(f => f.format !== nf.format || nf.format === 'generic' && f.name !== nf.name);
+      files.push(nf);
+    }
+    files.sort((a, b) => (a.format === 'simplify' ? -1 : b.format === 'simplify' ? 1 : 0));
+  } catch (e) {
+    err.textContent = e.message; err.hidden = false;
+    if (files.length) alert(e.message);
+    return;
+  }
+  if (persist) store.set(STORE_KEY, files.map(f => ({ name: f.name, text: f.text })));
+  if (unknownStatuses.size) console.warn('Unrecognized statuses (not counted):', [...unknownStatuses]);
+  merged = merge(files);
+  const prev = store.get(SNAP_KEY);
+  if (persist && Array.isArray(prev)) {
+    lastDiff = diffAgainst(prev, merged, list.map(x => x.name));
+    showAllNew = false;
+    pendingEnter = true;
+    store.set(DIFF_KEY, lastDiff);
+  }
+  if (persist || !Array.isArray(prev)) store.set(SNAP_KEY, snapshotOf(merged));
+  applyOverrides();
+  render();
+}
+
+function readFiles(fileList) {
+  const arr = [...fileList].filter(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
+  if (!arr.length) return;
+  Promise.all(arr.map(f => f.text().then(text => ({ name: f.name, text })))).then(list => loadTexts(list, true));
+}
+
+/* ---------- Tooltip ---------- */
+const tip = $('tip');
+function showTip(evt, build) {
+  tip.replaceChildren();
+  build(tip);
+  tip.style.opacity = 1;
+  moveTip(evt);
+}
+function moveTip(evt) {
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x, y;
+  if (evt.clientX !== undefined && evt.type !== 'focus') { x = evt.clientX + pad; y = evt.clientY + pad; }
+  else { const b = evt.target.getBoundingClientRect(); x = b.right + pad; y = b.top; }
+  if (x + r.width > innerWidth - 8) x = Math.max(8, x - r.width - pad * 2);
+  if (y + r.height > innerHeight - 8) y = Math.max(8, y - r.height - pad * 2);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.opacity = 0; };
+function tipLine(parent, value, label, color) {
+  const v = document.createElement('div'); v.className = 'v';
+  if (color) { const k = document.createElement('span'); k.className = 'k'; k.style.background = color; v.appendChild(k); }
+  v.appendChild(document.createTextNode(value));
+  const l = document.createElement('div'); l.textContent = label;
+  parent.append(v, l);
+}
+
+/* ---------- Render ---------- */
+const pct = (n, d) => d ? Math.round(n / d * 100) + '%' : '–';
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
+
+let pendingEnter = false; // set when a new What's new arrives
+function playEnter(els) {
+  els.forEach((el, i) => {
+    el.classList.remove('enter'); void el.offsetWidth;
+    el.style.setProperty('--i', i); el.classList.add('enter');
+    el.addEventListener('animationend', () => el.classList.remove('enter'), { once: true });
+  });
+}
+function render() {
+  const hasData = files.length > 0;
+  const revealing = hasData && $('dash').hidden;
+  $('empty').hidden = hasData;
+  $('dash').hidden = !hasData;
+  if (!hasData) return;
+
+  // File chips
+  const fc = $('files'); fc.replaceChildren();
+  files.forEach(f => {
+    const c = document.createElement('span'); c.className = 'chip';
+    const b = document.createElement('b'); b.textContent = LABEL[f.format];
+    c.append(b, document.createTextNode(` ${f.counted} applied of ${f.total} rows`));
+    c.title = f.name;
+    fc.appendChild(c);
+  });
+  const total = merged.apps.length;
+  const totalRows = files.reduce((s, f) => s + f.total, 0);
+  const csvApps = merged.all.filter(a => a.csvBucket !== 'excluded').length;
+  const repeats = merged.countedRows - csvApps;
+  const edits = merged.all.filter(a => a.edited).length;
+  $('mergeNote').textContent = [
+    `${plural(total, 'application')}.`,
+    repeats ? `${plural(repeats, 'duplicate row')} for the same job ${repeats === 1 ? 'was' : 'were'} combined.` : '',
+    `${totalRows - merged.countedRows} saved, skipped or unfinished rows left out.`,
+    edits ? `${plural(edits, 'status')} edited by you.`.replace('statuss', 'statuses') : '',
+  ].filter(Boolean).join(' ');
+
+  // Ranges
+  const seg = $('ranges'); seg.replaceChildren();
+  RANGES.forEach(r => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = r.label;
+    b.setAttribute('aria-pressed', String(r.id === rangeId));
+    b.onclick = () => { rangeId = r.id; store.set(RANGE_KEY, rangeId); render(); };
+    seg.appendChild(b);
+  });
+  const range = RANGES.find(r => r.id === rangeId);
+  const start = range.start();
+  const undated = merged.apps.filter(a => !a.date);
+  const apps = start ? merged.apps.filter(a => a.date && a.date >= start) : merged.apps;
+  const rn = $('rangeNote');
+  rn.hidden = !(start && undated.length);
+  rn.textContent = rn.hidden ? '' : `${plural(undated.length, 'application')} with no real apply date ${undated.length === 1 ? 'is' : 'are'} left out of this range. They're only counted in All time.`;
+
+  renderWhatsNew();
+  if (!$('editor').hidden) renderEditor();
+  renderKpis(apps);
+  renderSankey(apps);
+  renderCalendar(apps, start, undated.length);
+  if (revealing) {
+    const dash = $('dash');
+    playEnter([...dash.children].filter(el => !el.hidden));
+  } else if (pendingEnter && !$('whatsNew').hidden) playEnter([$('whatsNew')]);
+  pendingEnter = false;
+}
+
+function renderWhatsNew() {
+  const card = $('whatsNew');
+  card.hidden = !lastDiff;
+  if (!lastDiff) return;
+  const d = lastDiff;
+  const none = !d.added.length && !d.changed.length;
+  $('newTitle').textContent = none ? 'Nothing new' : "What's new";
+  const when = new Date(d.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  $('newSub').textContent = `From ${d.files.join(' + ')} · ${when}` + (none ? '. Every application in it was already counted.' : '');
+  const body = $('newBody'); body.replaceChildren();
+  const LIMIT = 8;
+  const section = (title, items, line) => {
+    if (!items.length) return;
+    const sec = document.createElement('div'); sec.className = 'new-sec';
+    const h = document.createElement('h3'); h.textContent = title;
+    const ul = document.createElement('ul'); ul.className = 'new-list';
+    (showAllNew ? items : items.slice(0, LIMIT)).forEach(it => { const li = document.createElement('li'); line(li, it); ul.appendChild(li); });
+    sec.append(h, ul);
+    if (items.length > LIMIT) {
+      const m = document.createElement('button'); m.className = 'more'; m.type = 'button';
+      m.textContent = showAllNew ? 'Show less' : `Show all ${items.length}`;
+      m.onclick = () => { showAllNew = !showAllNew; renderWhatsNew(); };
+      sec.appendChild(m);
+    }
+    body.appendChild(sec);
+  };
+  const dot = (b) => { const s = document.createElement('span'); s.className = 'dot'; s.style.background = BUCKET_COLOR[b]; return s; };
+  const name = (li, it) => { const b = document.createElement('b'); b.textContent = it.c; li.append(b, document.createTextNode(it.r)); };
+  section(plural(d.added.length, 'new application'), d.added, (li, it) => { li.appendChild(dot(it.b)); name(li, it); });
+  section(plural(d.changed.length, 'status change'), d.changed, (li, it) => {
+    li.appendChild(dot(it.b)); name(li, it);
+    const s = document.createElement('span'); s.className = 'arrow'; s.textContent = `${BUCKET_NAME[it.from]} → ${BUCKET_NAME[it.b]}`;
+    li.appendChild(s);
+  });
+}
+
+const EDIT_OPTIONS = [['applied', 'Applied'], ['progress', 'Screen / interview'], ['offer', 'Offer'], ['rejected', 'Rejected'], ['withdrawn', 'Withdrawn'], ['excluded', 'Not applied']];
+function renderEditor() {
+  const ul = $('edList'); ul.replaceChildren();
+  const terms = $('edSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let list = terms.length
+    ? merged.all.filter(a => { const h = (a.company + ' ' + a.role).toLowerCase(); return terms.every(t => h.includes(t)); })
+    : merged.all.filter(a => a.edited);
+  list.sort((a, b) => (b.csvBucket !== 'excluded') - (a.csvBucket !== 'excluded') || a.company.localeCompare(b.company));
+  if (!list.length) {
+    const li = document.createElement('li'); li.className = 'ed-meta'; li.style.padding = '8px 0';
+    li.textContent = terms.length ? 'No matching jobs in your CSVs.' : 'Type a company or role to find an application.';
+    ul.appendChild(li); return;
+  }
+  list.slice(0, 12).forEach(a => {
+    const li = document.createElement('li'); li.className = 'ed-row';
+    const main = document.createElement('div'); main.className = 'ed-main';
+    const co = document.createElement('div'); co.className = 'ed-co'; co.textContent = a.company;
+    if (a.edited) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'edited'; co.appendChild(t); }
+    const meta = document.createElement('div'); meta.className = 'ed-meta';
+    meta.textContent = [a.role, a.location, a.date ? 'applied ' + fmtDate(a.date) : ''].filter(Boolean).join(' · ');
+    main.append(co, meta);
+    const sel = document.createElement('select');
+    sel.setAttribute('aria-label', `Status for ${a.company} ${a.role}`);
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = `From CSV: ${BUCKET_NAME[a.csvBucket]}`; sel.appendChild(o0);
+    EDIT_OPTIONS.forEach(([v, l]) => { if (v === a.csvBucket) return; const o = document.createElement('option'); o.value = v; o.textContent = l; sel.appendChild(o); });
+    sel.value = a.edited ? a.bucket : '';
+    sel.onchange = () => {
+      overrides = overrides.filter(o => !sharesKey(o.keys, a.keys));
+      if (sel.value) overrides.push({ keys: a.keys, bucket: sel.value, csvBucket: a.csvBucket, label: `${a.company} — ${a.role}` });
+      store.set(OVERRIDE_KEY, overrides);
+      applyOverrides(); render();
+    };
+    li.append(main, sel); ul.appendChild(li);
+  });
+  if (list.length > 12) { const li = document.createElement('li'); li.className = 'ed-meta'; li.style.padding = '8px 0'; li.textContent = `${list.length - 12} more. Keep typing to narrow it down.`; ul.appendChild(li); }
+}
+
+function renderKpis(apps) {
+  const n = apps.length;
+  const c = (o) => apps.filter(a => a.outcome === o).length;
+  const prog = c('progress'), off = c('offer'), rej = c('rejected');
+  const responded = prog + off + rej;
+  const tiles = [
+    { label: 'Applied', color: 'var(--c-applied)', value: n.toLocaleString(), foot: `${c('waiting')} waiting · ${c('ghosted')} ghosted` },
+    { label: 'Response rate', color: null, value: pct(responded, n), foot: `${responded} of ${n} heard back` },
+    { label: 'Screens & interviews', color: 'var(--c-progress)', value: (prog + off).toLocaleString(), foot: `${pct(prog + off, n)} of applications` },
+    { label: 'Offers', color: 'var(--c-progress)', value: off.toLocaleString(), foot: off ? `${pct(off, n)} of applications` : 'None yet' },
+  ];
+  const root = $('kpis'); root.replaceChildren();
+  tiles.forEach(t => {
+    const el = document.createElement('div'); el.className = 'kpi';
+    const l = document.createElement('div'); l.className = 'kpi-label';
+    l.appendChild(document.createTextNode(t.label));
+    const v = document.createElement('div'); v.className = 'kpi-value'; v.textContent = t.value;
+    const f = document.createElement('div'); f.className = 'kpi-foot'; f.textContent = t.foot;
+    el.append(l, v, f); root.appendChild(el);
+  });
+}
+
+const NODE_COLOR = {
+  applied: 'var(--c-applied)', responded: 'var(--c-progress)', progress: 'var(--c-progress)', offer: 'var(--c-progress)',
+  rejected: 'var(--c-rejected)', rejectedLate: 'var(--c-rejected)', waiting: 'var(--c-waiting)', ghosted: 'var(--c-ghosted)', withdrawn: 'var(--c-ghosted)',
+};
+const QUIET = new Set(['waiting', 'ghosted', 'withdrawn']);
+const linkOpacity = (d, on) => QUIET.has(d.target.id) ? (on ? 0.4 : 0.18) : (on ? 0.7 : 0.4);
+const NODE_SHORT = { responded: 'Screens', rejectedLate: 'Rejected late', progress: 'In progress' };
+const NODE_NAME = {
+  applied: 'Applied', responded: 'Screen / interview', progress: 'In progress', offer: 'Offer',
+  rejected: 'Rejected', rejectedLate: 'Rejected after interview', waiting: 'Waiting', ghosted: 'Ghosted', withdrawn: 'Withdrawn',
+};
+
+function renderSankey(apps) {
+  const host = $('sankey'); host.replaceChildren();
+  const n = apps.length;
+  const c = (o) => apps.filter(a => a.outcome === o).length;
+  const counts = { waiting: c('waiting'), ghosted: c('ghosted'), rejected: c('rejected'), withdrawn: c('withdrawn'), progress: c('progress'), offer: c('offer'), rejectedLate: 0 };
+  const respondedTotal = counts.progress + counts.offer + counts.rejectedLate;
+  const secondLevel = counts.offer + counts.rejectedLate > 0; // only split when there's something beyond "in progress"
+
+  $('sankeySub').textContent = n ? `${plural(n, 'application')} · ghosted = no reply after ${GHOST_DAYS} days` : '';
+  const hasAT = files.some(f => f.format === 'applytwin');
+  $('sankeyNote').textContent = hasAT
+    ? `Outcomes (rejections, screens) come from Simplify. ApplyTwin rows have no outcome data, so ApplyTwin-only applications count as waiting or ghosted.`
+    : '';
+  if (!n) { const p = document.createElement('p'); p.className = 'note'; p.textContent = 'No applications in this date range.'; host.appendChild(p); return; }
+
+  const nodes = [{ id: 'applied' }];
+  const links = [];
+  const pushLink = (s, t, v) => { if (v > 0) { if (!nodes.some(x => x.id === t)) nodes.push({ id: t }); links.push({ source: s, target: t, value: v }); } };
+  if (respondedTotal) {
+    if (secondLevel) {
+      pushLink('applied', 'responded', respondedTotal);
+      pushLink('responded', 'progress', counts.progress);
+      pushLink('responded', 'offer', counts.offer);
+      pushLink('responded', 'rejectedLate', counts.rejectedLate);
+    } else pushLink('applied', 'responded', counts.progress);
+  }
+  pushLink('applied', 'rejected', counts.rejected);
+  pushLink('applied', 'withdrawn', counts.withdrawn);
+  pushLink('applied', 'waiting', counts.waiting);
+  pushLink('applied', 'ghosted', counts.ghosted);
+
+  const W = host.clientWidth || 800;
+  const narrow = W < 560;
+  const H = Math.max(260, Math.min(420, 120 + nodes.length * 34));
+  const labelW = narrow ? 112 : 200;
+  const m = { top: 8, right: labelW, bottom: 8, left: narrow ? 64 : 96 };
+
+  const sk = d3.sankey()
+    .nodeId(d => d.id)
+    .nodeAlign(d3.sankeyLeft)
+    .nodeWidth(10)
+    .nodePadding(narrow ? 14 : 20)
+    .nodeSort(null)
+    .extent([[m.left, m.top], [W - m.right, H - m.bottom]]);
+  const graph = sk({ nodes: nodes.map(d => ({ ...d })), links: links.map(d => ({ ...d })) });
+
+  const svg = d3.select(host).append('svg').attr('width', W).attr('height', H).attr('role', 'img')
+    .attr('aria-label', 'Pipeline: ' + graph.nodes.map(d => `${NODE_NAME[d.id]} ${d.value}`).join(', '));
+
+  const linkSel = svg.append('g').selectAll('path').data(graph.links).join('path')
+    .attr('class', 's-link')
+    .attr('d', d3.sankeyLinkHorizontal())
+    .attr('stroke', d => NODE_COLOR[d.target.id])
+    .attr('stroke-opacity', d => linkOpacity(d, false))
+    .attr('stroke-width', d => Math.max(2, d.width))
+    .attr('tabindex', 0)
+    .on('pointerenter focus', function (evt, d) {
+      d3.select(this).attr('stroke-opacity', linkOpacity(d, true));
+      showTip(evt, el => tipLine(el, `${d.value} · ${pct(d.value, n)}`, `${NODE_NAME[d.source.id]} → ${NODE_NAME[d.target.id]}`, NODE_COLOR[d.target.id]));
+    })
+    .on('pointermove', moveTip)
+    .on('pointerleave blur', function (evt, d) { d3.select(this).attr('stroke-opacity', linkOpacity(d, false)); hideTip(); });
+
+  const node = svg.append('g').selectAll('g').data(graph.nodes).join('g').attr('class', 's-node');
+  node.append('rect')
+    .attr('x', d => d.x0).attr('y', d => d.y0)
+    .attr('width', d => d.x1 - d.x0).attr('height', d => Math.max(3, d.y1 - d.y0))
+    .attr('fill', d => NODE_COLOR[d.id]);
+  // Bigger invisible hit target around each node
+  node.append('rect')
+    .attr('x', d => d.x0 - 8).attr('y', d => d.y0 - 4)
+    .attr('width', d => d.x1 - d.x0 + 16).attr('height', d => Math.max(3, d.y1 - d.y0) + 8)
+    .attr('fill', 'transparent').attr('tabindex', 0)
+    .on('pointerenter focus', (evt, d) => {
+      linkSel.attr('stroke-opacity', l => (l.source === d || l.target === d) ? linkOpacity(l, true) : 0.08);
+      showTip(evt, el => tipLine(el, `${d.value} · ${pct(d.value, n)}`, NODE_NAME[d.id], NODE_COLOR[d.id]));
+    })
+    .on('pointermove', moveTip)
+    .on('pointerleave blur', () => { linkSel.attr('stroke-opacity', l => linkOpacity(l, false)); hideTip(); });
+
+  const label = node.append('text').attr('class', 's-label')
+    .attr('x', d => d.id === 'applied' ? d.x0 - 10 : d.x1 + 10)
+    .attr('y', d => (d.y0 + d.y1) / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', d => d.id === 'applied' ? 'end' : 'start')
+    .attr('pointer-events', 'none');
+  label.each(function (d) {
+    const t = d3.select(this);
+    if (d.id === 'applied') {
+      t.append('tspan').attr('class', 'n').attr('x', d.x0 - 10).attr('dy', '-0.25em').text(d.value);
+      t.append('tspan').attr('x', d.x0 - 10).attr('dy', '1.3em').text('Applied');
+      return;
+    }
+    t.append('tspan').text(((narrow && NODE_SHORT[d.id]) || NODE_NAME[d.id]) + '  ');
+    t.append('tspan').attr('class', 'n').text(d.value);
+    if (!narrow) t.append('tspan').attr('class', 'p').text('  ' + pct(d.value, n));
+  });
+}
+
+function renderCalendar(apps, start, undatedCount) {
+  const host = $('calendar'); host.replaceChildren();
+  const dated = apps.filter(a => a.date);
+  const byDay = d3.rollup(dated, v => v.length, a => ymd(a.date));
+  const stats = $('calStats'); stats.replaceChildren();
+  $('calNote').textContent = undatedCount
+    ? `${plural(undatedCount, 'application')} imported into ApplyTwin "from your history" ${undatedCount === 1 ? 'has' : 'have'} no real apply date, so ${undatedCount === 1 ? "it isn't" : "they aren't"} shown here.` : '';
+  if (!dated.length) { const p = document.createElement('p'); p.className = 'note'; p.textContent = 'No dated applications in this range.'; host.appendChild(p); return; }
+
+  const minDate = start || d3.min(dated, a => a.date);
+  // Show at least ~16 weeks so a short history still reads as a calendar.
+  let first = d3.timeWeek.floor(minDate);
+  const minSpan = d3.timeWeek.offset(d3.timeWeek.floor(today), -15);
+  if (first > minSpan) first = minSpan;
+  const days = d3.timeDay.range(first, d3.timeDay.offset(today, 1));
+  const weeks = d3.timeWeek.count(first, today) + 1;
+
+  const gap = 3, left = 30, top = 20, right = 24;
+  const avail = (host.parentElement.clientWidth || 600) - left - right;
+  const cell = Math.max(11, Math.min(18, Math.floor(avail / weeks) - gap));
+  const step = cell + gap;
+  const W = left + weeks * step + right, H = top + 7 * step;
+  const max = d3.max([...byDay.values()]) || 1;
+  const level = (v) => !v ? 0 : max <= 4 ? Math.min(4, v) : Math.min(4, Math.ceil(v / max * 4));
+  const heat = ['var(--heat-0)', 'var(--heat-1)', 'var(--heat-2)', 'var(--heat-3)', 'var(--heat-4)'];
+
+  const svg = d3.select(host).append('svg').attr('width', W).attr('height', H).attr('role', 'img')
+    .attr('aria-label', `Applications per day, ${dated.length} total`);
+  [['Mon', 1], ['Wed', 3], ['Fri', 5]].forEach(([t, i]) =>
+    svg.append('text').attr('class', 'cal-axis').attr('x', 0).attr('y', top + i * step + cell / 2 + 4).text(t));
+  let lastMonth = -1;
+  for (let w = 0; w < weeks; w++) {
+    const d = d3.timeWeek.offset(first, w);
+    const dd = d3.timeDay.offset(d, 6) > today ? d : d3.timeDay.offset(d, 6);
+    const mo = (d.getDate() <= 7 ? d : dd).getMonth();
+    if (mo !== lastMonth && (d.getDate() <= 7 || w === 0)) {
+      svg.append('text').attr('class', 'cal-axis').attr('x', left + w * step).attr('y', 11)
+        .text(new Date(d.getFullYear(), mo, 1).toLocaleDateString(undefined, { month: 'short' }));
+      lastMonth = mo;
+    }
+  }
+  svg.append('g').selectAll('rect').data(days).join('rect')
+    .attr('class', 'cal-cell')
+    .attr('width', cell).attr('height', cell)
+    .attr('x', d => left + d3.timeWeek.count(first, d) * step)
+    .attr('y', d => top + d.getDay() * step)
+    .attr('fill', d => heat[level(byDay.get(ymd(d)))])
+    .attr('opacity', d => (start && d < start) ? 0.35 : 1)
+    .attr('tabindex', d => byDay.get(ymd(d)) ? 0 : -1)
+    .on('pointerenter focus', (evt, d) => {
+      const v = byDay.get(ymd(d)) || 0;
+      showTip(evt, el => tipLine(el, plural(v, 'application'), d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })));
+    })
+    .on('pointermove', moveTip)
+    .on('pointerleave blur', hideTip);
+
+  // Stats
+  let busiest = null; byDay.forEach((v, k) => { if (!busiest || v > busiest[1]) busiest = [k, v]; });
+  let streak = 0; let d = byDay.get(ymd(today)) ? today : d3.timeDay.offset(today, -1);
+  while (byDay.get(ymd(d))) { streak++; d = d3.timeDay.offset(d, -1); }
+  const spanStart = start || d3.min(dated, a => a.date);
+  const spanWeeks = Math.max(1, (today - spanStart) / DAY / 7);
+  const items = [
+    [busiest ? `${busiest[1]}` : '–', busiest ? `Busiest day · ${fmtDate(parseDate(busiest[0]))}` : 'Busiest day'],
+    [String(streak), streak === 1 ? 'Day streak' : 'Day streak (consecutive days)'],
+    [(dated.length / spanWeeks).toFixed(1), 'Applications per week'],
+    [String(byDay.size), 'Days you applied'],
+  ];
+  items.forEach(([v, l]) => {
+    const el = document.createElement('div');
+    const a = document.createElement('div'); a.className = 'stat-v'; a.textContent = v;
+    const b = document.createElement('div'); b.className = 'stat-l'; b.textContent = l;
+    el.append(a, b); stats.appendChild(el);
+  });
+}
+
+/* ---------- Wiring ---------- */
+const input = $('fileInput');
+input.addEventListener('change', () => { readFiles(input.files); input.value = ''; });
+$('dropzone').addEventListener('click', () => input.click());
+$('dropzone').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+$('addBtn').addEventListener('click', () => input.click());
+$('clearBtn').addEventListener('click', () => {
+  files = []; merged = null; lastDiff = null;
+  [STORE_KEY, SNAP_KEY, DIFF_KEY].forEach(k => store.del(k)); // edits are kept; they re-apply if you load the same jobs again
+  render();
+});
+$('newDismiss').addEventListener('click', () => { lastDiff = null; store.del(DIFF_KEY); renderWhatsNew(); });
+$('editBtn').addEventListener('click', () => {
+  const ed = $('editor'); ed.hidden = !ed.hidden;
+  $('editBtn').setAttribute('aria-expanded', String(!ed.hidden));
+  if (!ed.hidden) { renderEditor(); $('edSearch').focus(); }
+});
+$('edSearch').addEventListener('input', renderEditor);
+window.__appfunnel = () => merged; // for debugging in the console
+
+let dragDepth = 0;
+const overlay = $('overlay');
+addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; if (files.length) overlay.classList.add('on'); else $('dropzone').classList.add('over'); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; overlay.classList.remove('on'); $('dropzone').classList.remove('over'); } });
+addEventListener('drop', e => {
+  e.preventDefault(); dragDepth = 0; overlay.classList.remove('on'); $('dropzone').classList.remove('over');
+  if (e.dataTransfer?.files?.length) readFiles(e.dataTransfer.files);
+});
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => merged && render(), 120); });
+
+const saved = store.get(STORE_KEY);
+if (Array.isArray(saved) && saved.length) loadTexts(saved, false); else render();
+})();
+</script>
+</body>
+</html>

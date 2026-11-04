@@ -1,0 +1,5 @@
+# Personal tracker exports (contain personal details)
+*.csv
+# Browser automation logs
+.playwright-mcp/
+.DS_Store
