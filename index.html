@@ -367,6 +367,33 @@
   .day-list li { min-height: 52px; }
   .pill-muted { background: var(--active); color: var(--muted); }
 
+  /* Weekly goal */
+  .goal { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto auto; align-items: center; gap: 12px 24px; padding: 16px 18px; margin: 20px 0 0; background: var(--raised); border-radius: 12px; }
+  .goal-label { font-size: 13px; color: var(--faint); }
+  .goal-num { font-size: 15px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .goal-num b { font-size: 24px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .goal-bar { height: 8px; border-radius: 999px; background: var(--active); overflow: hidden; }
+  .goal-bar i { display: block; height: 100%; border-radius: 999px; background: var(--c-applied); transform-origin: left center; }
+  .goal.met .goal-bar i { background: var(--chart-3); }
+  .goal-status { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
+  .goal.met .goal-status { color: #5fd3a7; }
+  .goal.met .goal-status::before { content: "✓ "; }
+  .goal-meta { font-size: 12px; color: var(--faint); white-space: nowrap; }
+  .goal-edit { display: flex; gap: 8px; align-items: center; }
+  .goal-edit input { width: 72px; height: 32px; background: var(--ground); border: 1px solid var(--control); border-radius: var(--radius-control); color: var(--text); padding: 0 8px; font: inherit; font-size: 14px; outline: none; }
+  .goal-edit input:focus { border-color: var(--c-applied); }
+  .goal-edit .btn { height: 32px; }
+  @media (max-width: 640px) { .goal { grid-template-columns: 1fr auto; } .goal-mid { grid-column: 1 / -1; grid-row: 2; } .goal-edit { grid-column: 1 / -1; } }
+
+  /* Share dialog: a real modal, so it dims the page */
+  .dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid transparent; border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 64px rgba(0,0,0,0.6); overscroll-behavior: contain; }
+  .dialog::backdrop { background: rgba(0,0,0,0.6); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 14px 20px; border-bottom: 1px solid var(--border); }
+  .dlg-head h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  .share-img { display: block; width: calc(100% - 40px); margin: 20px; border-radius: 10px; aspect-ratio: 1200 / 630; background: var(--ground); }
+  .dlg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 0 20px 20px; }
+  .dlg-actions { display: flex; gap: 8px; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -399,6 +426,7 @@
         <div class="menu" id="moreMenu" role="menu" aria-label="More" hidden>
           <button class="menu-item" role="menuitem" type="button" id="editBtn">Edit statuses</button>
           <div class="menu-sep" role="separator"></div>
+          <button class="menu-item" role="menuitem" type="button" id="shareBtn">Share a summary image…</button>
           <button class="menu-item" role="menuitem" type="button" id="csvBtn">Download applications (CSV)</button>
           <button class="menu-item" role="menuitem" type="button" id="backupBtn">Download backup</button>
           <button class="menu-item" role="menuitem" type="button" id="restoreBtn">Restore from backup…</button>
@@ -461,6 +489,7 @@
           <div class="cal-scroll"><div id="calendar"></div></div>
           <div class="stats" id="calStats"></div>
         </div>
+        <div class="goal" id="goal"></div>
         <p class="note" id="calNote"></p>
       </section>
     </div>
@@ -570,6 +599,16 @@
   </div>
   <ul class="list day-list" id="dayList"></ul>
 </div>
+<dialog class="dialog" id="shareDlg" aria-labelledby="shareTitle">
+  <div class="dlg-head"><h2 id="shareTitle">Share your progress</h2>
+    <button class="btn btn-text btn-icon" id="shareClose" type="button" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+  </div>
+  <img class="share-img" id="shareImg" alt="Summary card with your application totals, reply rate, weekly pace and a calendar of the last 12 weeks">
+  <div class="dlg-foot">
+    <p class="note" style="margin:0">Totals only. No company names are included.</p>
+    <div class="dlg-actions"><button class="btn btn-secondary" id="copyImgBtn" type="button">Copy image</button><button class="btn btn-primary" id="downloadImgBtn" type="button">Download PNG</button></div>
+  </div>
+</dialog>
 <div id="tip" role="tooltip"></div>
 <div id="overlay">Drop CSV to load</div>
 
@@ -624,7 +663,7 @@ const DAY = 86400000;
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Storage (never required) ---------- */
-const DATA_KEYS = ['appfunnel.files.v1', 'appfunnel.overrides.v1', 'appfunnel.oas.v1'];
+const DATA_KEYS = ['appfunnel.files.v1', 'appfunnel.overrides.v1', 'appfunnel.oas.v1', 'appfunnel.goal.v1'];
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} if (DATA_KEYS.includes(k)) window.__dataChanged?.(); },
@@ -1010,7 +1049,7 @@ function render() {
   $('rangeBtn').hidden = !hasData;
   $('editBtn').disabled = !hasData;
   if (view === 'oas') $('rangeBtn').hidden = $('addBtn').hidden = true;
-  $('csvBtn').disabled = !hasData;
+  $('csvBtn').disabled = $('shareBtn').disabled = !hasData;
   $('backupBtn').disabled = $('clearBtn').disabled = !hasData && !oas.length;
   const narrow = matchMedia('(max-width: 640px)').matches;
   $('addBtn').textContent = narrow ? 'Load' : hasData ? 'Load new export' : 'Load export';
@@ -1055,6 +1094,7 @@ function render() {
   renderFigures(apps);
   renderSankey(apps);
   renderCalendar(apps, start, undated.length);
+  renderGoal();
   renderHeard(apps);
   renderClock(apps);
   if (drawerOpen && drawerTab === 'edit') renderEditor();
@@ -1634,7 +1674,7 @@ $('clearBtn').addEventListener('click', () => {
 });
 $('backupBtn').addEventListener('click', () => {
   closeMenu();
-  const data = { app: 'JustApply', version: 1, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas };
+  const data = { app: 'JustApply', version: 1, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas, goal: store.get('appfunnel.goal.v1') };
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `justapply-backup-${ymd(today)}.json`; document.body.appendChild(a); a.click(); a.remove();
@@ -1674,6 +1714,7 @@ $('restoreInput').addEventListener('change', async (e) => {
     store.set(OVERRIDE_KEY, overrides);
     (data.oas || []).forEach(o => { const cur = oas.find(x => x.id === o.id); if (!cur) oas.push(o); else if ((o.updatedAt || 0) > (cur.updatedAt || 0)) Object.assign(cur, o); });
     saveOAs();
+    if (Number.isFinite(data.goal) && data.goal > 0) store.set('appfunnel.goal.v1', data.goal);
     if (data.files.length) loadTexts(data.files, true); else render();
     if (view === 'oas') renderOAs();
   } catch { alert("That file isn't a JustApply backup."); }
@@ -1911,7 +1952,7 @@ const idb = (() => {
 let fileHandle = null, fileState = 'off', fileSavedAt = null, writeTimer = null, writing = Promise.resolve();
 // fileState: 'off' (no file) | 'on' (saving) | 'paused' (needs permission again) | 'error'
 
-const snapshotData = () => ({ app: 'JustApply', version: 2, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas });
+const snapshotData = () => ({ app: 'JustApply', version: 2, savedAt: new Date().toISOString(), files: files.map(f => ({ name: f.name, text: f.text, at: f.at })), overrides, oas, goal: store.get('appfunnel.goal.v1') });
 async function permitted(h, ask) {
   if (!h.queryPermission) return true; // e.g. origin-private files used in tests
   const o = { mode: 'readwrite' };
@@ -1943,6 +1984,7 @@ function writeFile() {
 // Bring data from the file into the app. mode 'replace' trusts the file; 'merge' keeps both sides.
 function absorb(data, mode) {
   if (!data || !Array.isArray(data.files)) return;
+  if (Number.isFinite(data.goal) && data.goal > 0) store.set('appfunnel.goal.v1', data.goal);
   if (mode === 'replace') {
     files = []; merged = null; overrides = data.overrides || []; oas = data.oas || [];
   } else {
@@ -2030,6 +2072,170 @@ $('fileNoticeBtn').addEventListener('click', () => fileState === 'error' ? start
   } catch { /* no saved file */ }
 })();
 window.__dataChanged = dataChanged;
+
+/* ---------- Weekly goal ---------- */
+const GOAL_KEY = 'appfunnel.goal.v1';
+const weekStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }; // Monday
+let goalEditing = false;
+function goalTarget() { const g = store.get(GOAL_KEY); return Number.isFinite(g) && g > 0 ? g : 20; }
+function weekCounts() {
+  const counts = new Map();
+  (merged ? merged.apps : []).forEach(a => { if (!a.date) return; const k = +weekStart(a.date); counts.set(k, (counts.get(k) || 0) + 1); });
+  return counts;
+}
+function goalStats() {
+  const goal = goalTarget(), counts = weekCounts(), thisWeek = +weekStart(today);
+  const done = counts.get(thisWeek) || 0;
+  // Streak: consecutive weeks at or above goal, counting this week only once it's met.
+  let streak = 0, w = done >= goal ? thisWeek : +weekStart(new Date(thisWeek - 7 * DAY));
+  while ((counts.get(w) || 0) >= goal) { streak++; w = +weekStart(new Date(w - 7 * DAY)); }
+  return { goal, done, streak, met: done >= goal };
+}
+function renderGoal() {
+  const root = $('goal'); root.replaceChildren();
+  const { goal, done, streak, met } = goalStats();
+  root.classList.toggle('met', met);
+  const lbl = document.createElement('div'); lbl.className = 'goal-label'; lbl.textContent = 'This week';
+  const num = document.createElement('div'); num.className = 'goal-num';
+  const b = document.createElement('b'); b.textContent = done;
+  num.append(b, document.createTextNode(` of ${goal}`));
+  const bar = document.createElement('div'); bar.className = 'goal-bar';
+  bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', String(goal)); bar.setAttribute('aria-valuenow', String(Math.min(done, goal)));
+  bar.setAttribute('aria-label', `${done} of ${goal} applications this week`);
+  const fill = document.createElement('i'); fill.style.transform = `scaleX(${Math.min(1, done / goal)})`; bar.appendChild(fill);
+  const status = document.createElement('div'); status.className = 'goal-status';
+  status.textContent = met ? 'Goal met' : `${goal - done} to go`;
+  const meta = document.createElement('div'); meta.className = 'goal-meta';
+  meta.textContent = streak ? `${streak} ${streak === 1 ? 'week' : 'weeks'} in a row` : 'Weeks run Monday to Sunday';
+  const edit = document.createElement('div'); edit.className = 'goal-edit';
+  if (goalEditing) {
+    const inp = document.createElement('input'); inp.type = 'number'; inp.min = '1'; inp.max = '500'; inp.value = goal; inp.setAttribute('aria-label', 'Applications per week');
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'btn btn-secondary'; save.textContent = 'Save';
+    // Focus returns to "Edit goal" after the key is released, so the same Enter can't press that button too.
+    const commit = () => { const v = Math.round(+inp.value); if (v > 0 && v <= 500) store.set(GOAL_KEY, v); goalEditing = false; renderGoal(); setTimeout(() => $('goalEditBtn')?.focus(), 0); };
+    save.onclick = commit;
+    inp.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); goalEditing = false; renderGoal(); setTimeout(() => $('goalEditBtn')?.focus(), 0); }
+    };
+    edit.append(inp, save);
+    requestAnimationFrame(() => { inp.focus(); inp.select(); });
+  } else {
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-text'; btn.id = 'goalEditBtn'; btn.textContent = 'Edit goal';
+    btn.onclick = () => { goalEditing = true; renderGoal(); };
+    edit.appendChild(btn);
+  }
+  const left = document.createElement('div'); left.className = 'goal-left'; left.append(lbl, num);
+  const mid = document.createElement('div'); mid.className = 'goal-mid'; mid.append(bar);
+  const right = document.createElement('div'); right.className = 'goal-right'; right.append(status, meta);
+  root.append(left, mid, right, edit);
+}
+
+/* ---------- Shareable summary image ---------- */
+// Totals only, never company names. Drawn on a canvas at 1200x630 (2x pixels) for LinkedIn / Discord.
+function drawSummary(apps, rangeLabel) {
+  const W = 1200, H = 630, S = 2;
+  const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+  const g = cv.getContext('2d'); g.scale(S, S);
+  const F = (w, px) => `${w} ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const round = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+  const c = (o) => apps.filter(a => a.outcome === o).length;
+  const n = apps.length, screens = c('progress') + c('offer'), rej = c('rejected'), heard = screens + rej, offers = c('offer');
+  // ground + card
+  g.fillStyle = '#0d0d0d'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#1a1a19'; round(32, 32, W - 64, H - 64, 24); g.fill();
+  // brand
+  g.save(); g.translate(72, 70); g.scale(36 / 512, 36 / 512);
+  g.fillStyle = '#f0efec'; round(0, 0, 512, 512, 112); g.fill();
+  g.fillStyle = '#141414'; g.fill(new Path2D('M118 250l276-118-82 262-64-90z'));
+  g.fillStyle = '#3987e5'; g.fill(new Path2D('M248 304l146-172-180 146z'));
+  g.fillStyle = '#5b9bea'; g.fill(new Path2D('M248 304l-4 82 50-52z'));
+  g.restore();
+  g.fillStyle = '#f0efec'; g.font = F(600, 24); g.textBaseline = 'middle'; g.fillText('JustApply', 120, 89);
+  g.textAlign = 'right'; g.fillStyle = '#898781'; g.font = F(400, 20);
+  g.fillText(`${rangeLabel} · ${today.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`, W - 72, 89);
+  g.textAlign = 'left';
+  // headline
+  g.fillStyle = '#f0efec'; g.font = F(700, 84); g.textBaseline = 'alphabetic'; g.fillText(n.toLocaleString(), 72, 228);
+  const nw = g.measureText(n.toLocaleString()).width;
+  g.font = F(500, 32); g.fillStyle = '#c3c2b7'; g.fillText(n === 1 ? 'application' : 'applications', 72 + nw + 18, 226);
+  // figures row
+  const figs = [['Heard back', `${heard}`, n ? `${Math.round(heard / n * 100)}%` : ''], ['Screens', `${screens}`, ''], ['Offers', `${offers}`, ''], ['Rejections', `${rej}`, '']];
+  figs.forEach(([l, v, sub], i) => {
+    const x = 72 + i * 170;
+    g.fillStyle = '#898781'; g.font = F(500, 20); g.fillText(l, x, 286);
+    g.fillStyle = '#f0efec'; g.font = F(600, 44); g.fillText(v, x, 336);
+    if (sub) { const vw = g.measureText(v).width; g.fillStyle = '#898781'; g.font = F(500, 22); g.fillText(sub, x + vw + 10, 334); }
+  });
+  // reply bar: screens + offers (aqua), rejections (orange), no reply yet (grey)
+  const bx = 72, by = 384, bw = 640, bh = 16; // ends well before the calendar at x≈809
+  g.fillStyle = '#2c2c2a'; round(bx, by, bw, bh, 8); g.fill();
+  let x = bx;
+  [[screens, '#199e70'], [rej, '#d95926']].forEach(([v, col]) => {
+    if (!v || !n) return; const w = Math.max(6, v / n * bw);
+    g.fillStyle = col; round(x, by, w, bh, 8); g.fill(); x += w + 3;
+  });
+  g.font = F(500, 18); g.textBaseline = 'middle';
+  [['#199e70', 'Screens & offers'], ['#d95926', 'Rejected'], ['#4a4946', 'No reply yet']].reduce((lx, [col, t]) => {
+    g.fillStyle = col; round(lx, by + 40, 12, 12, 3); g.fill();
+    g.fillStyle = '#c3c2b7'; g.fillText(t, lx + 20, by + 47); return lx + 40 + g.measureText(t).width;
+  }, bx);
+  g.textBaseline = 'alphabetic';
+  // pace + goal
+  const dated = apps.filter(a => a.date);
+  const first = dated.length ? dated.reduce((m, a) => a.date < m ? a.date : m, dated[0].date) : today;
+  const perWeek = dated.length / Math.max(1, (today - first) / DAY / 7);
+  const { streak, goal, done } = goalStats();
+  const row = [['Pace', `${perWeek.toFixed(1)} / week`], ['This week', `${done} of ${goal}`]];
+  if (streak) row.push(['Goal streak', `${streak} ${streak === 1 ? 'week' : 'weeks'}`]);
+  row.forEach(([l, v], i) => {
+    const x = 72 + i * 240;
+    g.fillStyle = '#898781'; g.font = F(500, 20); g.fillText(l, x, 494);
+    g.fillStyle = '#f0efec'; g.font = F(600, 30); g.fillText(v, x, 530);
+  });
+  // mini calendar: last 12 weeks
+  const byDay = new Map(); dated.forEach(a => byDay.set(ymd(a.date), (byDay.get(ymd(a.date)) || 0) + 1));
+  const max = Math.max(1, ...byDay.values());
+  const heat = ['#232322', '#184f95', '#256abf', '#3987e5', '#86b6ef'];
+  const lvl = (v) => !v ? 0 : max <= 4 ? Math.min(4, v) : Math.min(4, Math.ceil(v / max * 4));
+  const startW = weekStart(new Date(+today - 11 * 7 * DAY)), cs = 22, gap = 5, cx0 = W - 72 - 12 * (cs + gap) + gap, cy0 = 262;
+  for (let w = 0; w < 12; w++) for (let d = 0; d < 7; d++) {
+    const day = new Date(+startW + (w * 7 + d) * DAY); if (day > today) continue;
+    g.fillStyle = heat[lvl(byDay.get(ymd(day)))]; round(cx0 + w * (cs + gap), cy0 + d * (cs + gap), cs, cs, 4); g.fill();
+  }
+  g.fillStyle = '#898781'; g.font = F(500, 18); g.textAlign = 'right'; g.fillText('Last 12 weeks', W - 72, 246); g.textAlign = 'left';
+  // footer
+  g.fillStyle = '#898781'; g.font = F(500, 20); g.fillText('Tracked with JustApply  ·  npx justapply', 72, H - 58);
+  return cv;
+}
+let shareCanvas = null;
+function openShare() {
+  closeMenu();
+  const range = RANGES.find(r => r.id === rangeId), start = range.start();
+  const apps = start ? merged.apps.filter(a => a.date && a.date >= start) : merged.apps;
+  shareCanvas = drawSummary(apps, range.label);
+  $('shareImg').src = shareCanvas.toDataURL('image/png');
+  $('copyImgBtn').textContent = 'Copy image';
+  $('copyImgBtn').hidden = !(navigator.clipboard && window.ClipboardItem);
+  const dlg = $('shareDlg'); dlg.showModal();
+  dlg.animate(MOTION ? [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'scale(1)' }] : [{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: EASE });
+}
+$('shareBtn').addEventListener('click', openShare);
+$('shareClose').addEventListener('click', () => $('shareDlg').close());
+$('shareDlg').addEventListener('click', (e) => { if (e.target === $('shareDlg')) $('shareDlg').close(); });
+$('downloadImgBtn').addEventListener('click', () => {
+  shareCanvas.toBlob(blob => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `justapply-summary-${ymd(today)}.png`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/png');
+});
+$('copyImgBtn').addEventListener('click', () => {
+  shareCanvas.toBlob(async blob => {
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); $('copyImgBtn').textContent = 'Copied'; }
+    catch { $('copyImgBtn').textContent = "Couldn't copy, use Download"; }
+    setTimeout(() => { $('copyImgBtn').textContent = 'Copy image'; }, 1800);
+  }, 'image/png');
+});
 
 // Ask the browser not to evict this app's storage (granted automatically for an installed app).
 navigator.storage?.persist?.().catch(() => {});
