@@ -25,14 +25,15 @@ Then drop in your exports:
 - **Simplify:** Tracker → Export to CSV
 - **ApplyTwin:** export your applications as CSV
 
-You can load both; duplicates are merged. Load a newer export any time and JustApply shows what's new.
+You can load exports from more than one app at once; JustApply combines them and removes duplicates. Load a newer export any time and it shows what's new.
 
 Options: `npx justapply --port 4546` uses a different port, and `--no-open` skips opening the browser.
 
 ## What it does
 
-- **Counts only real applications.** Saved, skipped and unfinished rows are left out. You can add multiple csv files from different platforms.
-- **Merges duplicates** across both files using each posting's ID, so the same job is never counted twice.
+- **Combine multiple CSVs from different apps.** Load your Simplify and ApplyTwin exports together (or any CSV with company, role and status columns) and see everything in one place.
+- **Detects duplicates.** The same job showing up in two files, or listed twice in one, is counted once. It matches the posting ID in each job link (Workday, Greenhouse, Lever, Ashby and more), then company and role.
+- **Counts only real applications.** Saved, skipped and unfinished rows are left out.
 - **Funnel:** heard back, screens, offers, rejections, and what's still waiting or ghosted (no reply after 30 days).
 - **Heard back list, waiting clock, and an applying calendar.** Click a day to see what you applied to.
 - **Edit statuses** for updates your tracker doesn't have yet.
