@@ -1,6 +1,6 @@
 # JustApply
 
-Simplify's tracker ui is a pain to use. 
+Most job tracker ui's are a pain to use. 
 
 JustApply turns your csv exports into a clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied.
 
@@ -39,7 +39,7 @@ Options: `npx justapply --port 4546` uses a different port, and `--no-open` skip
 - **Edit statuses** for updates your tracker doesn't have yet.
 - **OA notebook:** log each assessment's questions by topic and how they went, plus what went well, what went wrong and what to do next time.
 - **Weekly goal:** set a target, track this week's progress and your streak.
-- **Share a summary image:** a clean card of your totals for LinkedIn or Discord. No company names.
+- **Share a summary image:** a clean card of your totals. No company names are shown.
 - **Download your applications as a clean CSV.**
 
 ## Your data
