@@ -8,8 +8,6 @@ Runs locally on your computer. Nothing is uploaded anywhere.
 
 ![JustApply demo: loading a Simplify export, the funnel, replies and waiting clock, a calendar day, the weekly goal, logging an OA, and a summary image](https://raw.githubusercontent.com/shreyassuman2/justapply/main/docs/demo.gif)
 
-In the demo: drop in a Simplify export, switch the date range, see who replied and how long the rest have waited, click a calendar day, set a weekly goal, log an OA, and share a summary image.
-
 ## Run it
 
 You need [Node.js](https://nodejs.org) 18 or newer.
