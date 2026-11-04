@@ -1,10 +1,10 @@
 # JustApply
 
-See which job applications actually got a reply.
+Simplify's tracker ui is a pain to use. 
 
-JustApply turns your tracker exports into one clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied. It also has a notebook for online assessments, so you can see which topics keep tripping you up.
+JustApply turns your csv exports into a clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied. It also includes a notebook for OA's.
 
-Everything runs on your own computer. Nothing is uploaded anywhere.
+Runs locally on your computer. Nothing is uploaded anywhere.
 
 ## Run it
 
@@ -27,12 +27,12 @@ Options: `npx justapply --port 4546` uses a different port, and `--no-open` skip
 
 ## What it does
 
-- **Counts only real applications.** Saved, skipped and unfinished rows are left out.
+- **Counts only real applications.** Saved, skipped and unfinished rows are left out. You can add multiple csv files from different platforms.
 - **Merges duplicates** across both files using each posting's ID, so the same job is never counted twice.
 - **Funnel:** heard back, screens, offers, rejections, and what's still waiting or ghosted (no reply after 30 days).
 - **Heard back list, waiting clock, and an applying calendar.** Click a day to see what you applied to.
 - **Edit statuses** for updates your tracker doesn't have yet.
-- **OA notebook:** log each assessment's questions by topic and how they went, plus what went well, what went wrong and what to do next time. Weak topics rise to the top.
+- **OA notebook:** log each assessment's questions by topic and how they went, plus what went well, what went wrong and what to do next time.
 - **Download your applications as a clean CSV.**
 
 ## Your data
