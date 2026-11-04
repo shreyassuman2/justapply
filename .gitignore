@@ -3,3 +3,11 @@
 # Browser automation logs
 .playwright-mcp/
 .DS_Store
+
+# tasteskill working files (preview copy holds personal data)
+.taste-skill/
+
+# Locally installed agent skills
+.agents/
+.claude/
+skills-lock.json
