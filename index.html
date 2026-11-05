@@ -380,8 +380,20 @@
   .goal.met .goal-status::before { content: "✓ "; }
   .goal-meta { font-size: 12px; color: var(--faint); white-space: nowrap; }
   .goal-edit { display: flex; gap: 8px; align-items: center; }
-  .goal-edit input { width: 72px; height: 32px; background: var(--ground); border: 1px solid var(--control); border-radius: var(--radius-control); color: var(--text); padding: 0 8px; font: inherit; font-size: 14px; outline: none; }
-  .goal-edit input:focus { border-color: var(--c-applied); }
+  .goal-edit { gap: 8px; }
+  .goal-range { -webkit-appearance: none; appearance: none; width: 96px; height: 20px; background: transparent; cursor: pointer; margin: 0; }
+  .goal-range::-webkit-slider-runnable-track { height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(240,239,236,0.55) var(--fill, 0%), rgba(255,255,255,0.1) var(--fill, 0%)); }
+  .goal-range::-moz-range-track { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.1); }
+  .goal-range::-moz-range-progress { height: 3px; border-radius: 999px; background: rgba(240,239,236,0.55); }
+  .goal-range::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4.5px; border-radius: 50%; background: #f0efec; box-shadow: 0 1px 3px rgba(0,0,0,0.5); transition: transform 200ms var(--spring, ease-out); }
+  .goal-range::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #f0efec; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  @media (hover: hover) { .goal-range:hover::-webkit-slider-thumb { transform: scale(1.15); } }
+  .goal-range:active::-webkit-slider-thumb { transform: scale(1.2); }
+  .goal-range:focus-visible { outline: none; }
+  .goal-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(57,135,229,0.6); }
+  .goal-out { min-width: 40px; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .goal-edit input[type=number] { width: 72px; height: 32px; background: var(--ground); border: 1px solid var(--control); border-radius: var(--radius-control); color: var(--text); padding: 0 8px; font: inherit; font-size: 14px; outline: none; }
+  .goal-edit input[type=number]:focus { border-color: var(--c-applied); }
   .goal-edit .btn { height: 32px; }
   @media (max-width: 640px) { .goal { grid-template-columns: 1fr auto; } .goal-mid { grid-column: 1 / -1; grid-row: 2; } .goal-edit { grid-column: 1 / -1; } }
 
@@ -570,6 +582,8 @@
           <div class="menu-sep" role="separator"></div>
           <button class="menu-item" role="menuitem" type="button" id="shareBtn">Share a summary image…</button>
           <button class="menu-item" role="menuitem" type="button" id="csvBtn">Download applications (CSV)</button>
+          <button class="menu-item" role="menuitem" type="button" id="oaCsvBtn">Download OAs (CSV)</button>
+          <button class="menu-item" role="menuitem" type="button" id="oaMdBtn">Download OA notes (Markdown)</button>
           <button class="menu-item" role="menuitem" type="button" id="backupBtn">Download backup</button>
           <button class="menu-item" role="menuitem" type="button" id="restoreBtn">Restore from backup…</button>
           <div class="menu-sep" role="separator"></div>
@@ -1193,6 +1207,7 @@ function render() {
   $('editBtn').disabled = !hasData;
   if (view === 'oas') $('rangeBtn').hidden = $('addBtn').hidden = true;
   $('csvBtn').disabled = $('shareBtn').disabled = !hasData;
+  $('oaCsvBtn').disabled = $('oaMdBtn').disabled = !oas.length;
   $('backupBtn').disabled = $('clearBtn').disabled = !hasData && !oas.length;
   const narrow = matchMedia('(max-width: 640px)').matches;
   $('addBtn').querySelector('.lbl').textContent = narrow ? 'Load' : hasData ? 'Load new export' : 'Load export';
@@ -1983,6 +1998,7 @@ function setView(v) {
 
 function renderOAs() {
   const has = oas.length > 0;
+  $('oaCsvBtn').disabled = $('oaMdBtn').disabled = !has;
   $('oaEmpty').hidden = has;
   $('oaGrid').hidden = !has;
   if (!has) return;
@@ -2126,6 +2142,47 @@ $('oaDelete').addEventListener('click', () => {
   oas = oas.filter(x => x !== o); saveOAs(); editingId = null; closeOA();
 });
 $('newOaBtn').addEventListener('click', (e) => openOA(null, e.currentTarget));
+
+/* OA exports: a spreadsheet (one row per question) and a readable Markdown journal. */
+function saveText(text, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const OUT_LABEL = { solved: 'Solved', partial: 'Partial', missed: 'Not solved' };
+const oasNewestFirst = () => [...oas].sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.createdAt - a.createdAt);
+$('oaCsvBtn').addEventListener('click', () => {
+  closeMenu();
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const head = ['Company', 'Role', 'Date', 'Platform', 'Score', 'Question #', 'Topic', 'Question', 'Result', 'Went well', 'Went wrong', 'Next time'];
+  const rows = [];
+  oasNewestFirst().forEach(o => {
+    const base = [o.company, o.role, o.date, o.platform, o.score];
+    const notes = [o.well, o.wrong, o.next];
+    const qs = o.questions.length ? o.questions : [null];
+    qs.forEach((q, i) => rows.push([...base, q ? i + 1 : '', q ? q.topic : '', q ? q.name : '', q ? OUT_LABEL[q.outcome] : '', ...notes]));
+  });
+  saveText('\uFEFF' + [head, ...rows].map(r => r.map(esc).join(',')).join('\r\n'), `justapply-oas-${ymd(today)}.csv`, 'text/csv;charset=utf-8');
+});
+$('oaMdBtn').addEventListener('click', () => {
+  closeMenu();
+  const line = (t) => (t || '').trim();
+  const out = [`# OA notes`, ``, `Exported from JustApply on ${today.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}. ${plural(oas.length, 'OA')}.`, ``];
+  oasNewestFirst().forEach(o => {
+    const when = o.date ? parseDate(o.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    out.push(`## ${line(o.company) || 'Untitled OA'}${line(o.role) ? ' · ' + line(o.role) : ''}`);
+    const meta = [when, line(o.platform), line(o.score) && 'Score ' + line(o.score)].filter(Boolean).join(' · ');
+    if (meta) out.push(meta, '');
+    if (o.questions.length) {
+      out.push('**Questions**', '');
+      o.questions.forEach(q => out.push(`- ${OUT_LABEL[q.outcome]}: ${[line(q.topic), line(q.name)].filter(Boolean).join(' · ') || 'Untitled question'}`));
+      out.push('');
+    }
+    [['Went well', o.well], ['Went wrong', o.wrong], ['Next time', o.next]].forEach(([h, t]) => { if (line(t)) out.push(`**${h}**`, '', line(t), ''); });
+  });
+  saveText(out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n', `justapply-oa-notes-${ymd(today)}.md`, 'text/markdown;charset=utf-8');
+});
 document.addEventListener('click', (e) => { if (e.target.closest('[data-new-oa]')) openOA(null, e.target.closest('[data-new-oa]')); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('oaPanel').hidden && !openMenuBtn) { clearTimeout(saveTimer); saveOA(); closeOA(); } });
 addEventListener('hashchange', () => setView(location.hash === '#oas' ? 'oas' : 'apps'));
@@ -2269,7 +2326,6 @@ window.__dataChanged = dataChanged;
 /* ---------- Weekly goal ---------- */
 const GOAL_KEY = 'appfunnel.goal.v1';
 const weekStart = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }; // Monday
-let goalEditing = false;
 function goalTarget() { const g = store.get(GOAL_KEY); return Number.isFinite(g) && g > 0 ? g : 20; }
 function weekCounts() {
   const counts = new Map();
@@ -2300,24 +2356,24 @@ function renderGoal() {
   status.textContent = met ? 'Goal met' : `${goal - done} to go`;
   const meta = document.createElement('div'); meta.className = 'goal-meta';
   meta.textContent = streak ? `${streak} ${streak === 1 ? 'week' : 'weeks'} in a row` : 'Weeks run Monday to Sunday';
+  // A small slider that's always there: drag to preview (count, bar, "to go"), let go to save.
   const edit = document.createElement('div'); edit.className = 'goal-edit';
-  if (goalEditing) {
-    const inp = document.createElement('input'); inp.type = 'number'; inp.min = '1'; inp.max = '500'; inp.value = goal; inp.setAttribute('aria-label', 'Applications per week');
-    const save = document.createElement('button'); save.type = 'button'; save.className = 'btn btn-secondary'; save.textContent = 'Save';
-    // Focus returns to "Edit goal" after the key is released, so the same Enter can't press that button too.
-    const commit = () => { const v = Math.round(+inp.value); if (v > 0 && v <= 500) store.set(GOAL_KEY, v); goalEditing = false; renderGoal(); setTimeout(() => $('goalEditBtn')?.focus(), 0); };
-    save.onclick = commit;
-    inp.onkeydown = (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); commit(); }
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); goalEditing = false; renderGoal(); setTimeout(() => $('goalEditBtn')?.focus(), 0); }
-    };
-    edit.append(inp, save);
-    requestAnimationFrame(() => { inp.focus(); inp.select(); });
-  } else {
-    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn btn-text'; btn.id = 'goalEditBtn'; btn.textContent = 'Edit goal';
-    btn.onclick = () => { goalEditing = true; renderGoal(); };
-    edit.appendChild(btn);
-  }
+  const MAX = Math.max(60, Math.ceil(goal / 10) * 10);
+  const rng = document.createElement('input'); rng.type = 'range'; rng.min = '1'; rng.max = String(MAX); rng.step = '1'; rng.value = goal;
+  rng.className = 'goal-range'; rng.setAttribute('aria-label', 'Weekly goal, applications per week');
+  const out = document.createElement('output'); out.className = 'goal-out';
+  const paint = (v) => {
+    rng.style.setProperty('--fill', ((v - 1) / (MAX - 1) * 100) + '%');
+    out.textContent = `${v}/wk`;
+    num.lastChild.textContent = ` of ${v}`;
+    fill.style.transform = `scaleX(${Math.min(1, done / v)})`;
+    root.classList.toggle('met', done >= v);
+    status.textContent = done >= v ? 'Goal met' : `${v - done} to go`;
+  };
+  rng.addEventListener('input', () => paint(+rng.value));
+  rng.addEventListener('change', () => { const v = Math.round(+rng.value); if (v > 0) store.set(GOAL_KEY, v); });
+  edit.append(rng, out);
+  paint(goal);
   const left = document.createElement('div'); left.className = 'goal-left'; left.append(lbl, num);
   const mid = document.createElement('div'); mid.className = 'goal-mid'; mid.append(bar);
   const right = document.createElement('div'); right.className = 'goal-right'; right.append(status, meta);
