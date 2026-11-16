@@ -1,8 +1,6 @@
 # JustApply
 
-Most job tracker ui's are a pain to use. 
-
-JustApply turns your csv exports into a clean dashboard: how many applications heard back, who replied, what's still waiting, and which days you applied.
+job tracker ui made it for fun to combine applytwin and simplify apps(w a good ui). runs locally on computer.
 
 Runs locally on your computer. Nothing is uploaded anywhere.
 
